@@ -1,0 +1,30 @@
+:root {
+  --primary-red: #b42318;
+  --primary-red-dark: #8f1d14;
+  --accent-gold: #f4b400;
+  --accent-orange: #f97316;
+
+  --cream-bg: #fff7ed;
+  --soft-bg: #fffaf3;
+  --card-white: #ffffff;
+
+  --text-dark: #1f2937;
+  --text-muted: #6b7280;
+
+  --border-light: #f1e6d6;
+
+  --success-green: #15803d;
+  --danger-red: #dc2626;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(244, 180, 0, 0.13), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(180, 35, 24, 0.12), transparent 30%),
+    var(--cream-bg);
+  color: var(--text-dark);
+}
+
+a {
+  text-decoration: none;
+}

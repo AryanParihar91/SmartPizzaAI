@@ -1,0 +1,11 @@
+package com.smartpizza.orderservice.service;
+
+import com.smartpizza.orderservice.dto.DeliveryTrackingResponse;
+import com.smartpizza.orderservice.enums.DeliveryStatus;
+
+public interface DeliveryService {
+
+    DeliveryTrackingResponse trackOrder(Long orderId);
+
+    DeliveryTrackingResponse updateDeliveryStatus(Long orderId, DeliveryStatus status);
+}

@@ -1,0 +1,45 @@
+package com.smartpizza.menuservice.controller;
+
+import com.smartpizza.menuservice.dto.CategoryRequest;
+import com.smartpizza.menuservice.dto.CategoryResponse;
+import com.smartpizza.menuservice.service.CategoryService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/menu/categories")
+@RequiredArgsConstructor
+public class CategoryController {
+
+    private final CategoryService categoryService;
+
+    @PostMapping
+    public CategoryResponse createCategory(@Valid @RequestBody CategoryRequest request) {
+        return categoryService.createCategory(request);
+    }
+
+    @GetMapping
+    public List<CategoryResponse> getAllCategories() {
+        return categoryService.getAllCategories();
+    }
+
+    @GetMapping("/{categoryId}")
+    public CategoryResponse getCategoryById(@PathVariable Long categoryId) {
+        return categoryService.getCategoryById(categoryId);
+    }
+
+    @PutMapping("/{categoryId}")
+    public CategoryResponse updateCategory(@PathVariable Long categoryId,
+                                           @Valid @RequestBody CategoryRequest request) {
+        return categoryService.updateCategory(categoryId, request);
+    }
+
+    @DeleteMapping("/{categoryId}")
+    public String deleteCategory(@PathVariable Long categoryId) {
+        categoryService.deleteCategory(categoryId);
+        return "Category deleted successfully";
+    }
+}

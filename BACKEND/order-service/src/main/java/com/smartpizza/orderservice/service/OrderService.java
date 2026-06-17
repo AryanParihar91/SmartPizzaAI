@@ -1,0 +1,22 @@
+package com.smartpizza.orderservice.service;
+
+import com.smartpizza.orderservice.dto.OrderResponse;
+import com.smartpizza.orderservice.dto.PlaceOrderRequest;
+import com.smartpizza.orderservice.enums.OrderStatus;
+
+import java.util.List;
+
+public interface OrderService {
+
+    OrderResponse placeOrder(Long userId, PlaceOrderRequest request);
+
+    List<OrderResponse> getOrdersByUser(Long userId);
+
+    OrderResponse getOrderById(Long orderId);
+
+    OrderResponse updateOrderStatus(Long orderId, OrderStatus status);
+
+    List<OrderResponse> getAllOrders();
+    
+    List<Long> getTopOrderedPizzaIdsByUser(Long userId);
+}

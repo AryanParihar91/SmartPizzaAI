@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename package &apos;com.example.authservice&apos; to &apos;com.smartpizza.authservice&apos;&#x0D;&#x0A;- Original project: &apos;auth-service&apos;&#x0D;&#x0A;- Original element: &apos;auth-service/src/test/java/com.example.authservice&apos;&#x0D;&#x0A;- Renamed element: &apos;auth-service/src/test/java/com.smartpizza.authservice&apos;&#x0D;&#x0A;- Update references to refactored element&#x0D;&#x0A;- Update textual occurrences in comments and strings" description="Rename package &apos;com.example.authservice&apos;" flags="589830" hierarchical="false" id="org.eclipse.jdt.ui.rename.package" input="/src\/test\/java=/optional=/true=/=/maven.pomderived=/true=/=/test=/true=/&lt;com.example.authservice" name="com.smartpizza.authservice" qualified="false" references="true" stamp="1781417952326" textual="false" version="1.0"/>
+</session>

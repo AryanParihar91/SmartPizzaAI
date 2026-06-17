@@ -1,0 +1,150 @@
+.orders-page {
+  max-width: 1150px;
+  margin: 0 auto;
+}
+
+.orders-hero {
+  background: linear-gradient(135deg, #7f1d1d, #b42318, #f97316);
+  color: white;
+  border-radius: 26px;
+  padding: 32px;
+  margin-bottom: 28px;
+  box-shadow: 0 18px 40px rgba(127, 29, 29, 0.22);
+}
+
+.orders-hero h1 {
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.orders-hero p {
+  margin: 0;
+  opacity: 0.92;
+}
+
+.order-card {
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: 22px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 14px 30px rgba(127, 29, 29, 0.08);
+}
+
+.order-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.order-card h4 {
+  color: var(--primary-red);
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.order-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.order-info-row span:first-child {
+  color: var(--text-muted);
+}
+
+.order-info-row span:last-child {
+  text-align: right;
+}
+
+.order-items-box {
+  background: #fffaf3;
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.order-item-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.order-item-line:last-child {
+  margin-bottom: 0;
+}
+
+.order-status-badge {
+  display: inline-block;
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.status-delivered {
+  background: #ecfdf5;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.status-cancelled {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.status-active {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.orders-empty {
+  background: white;
+  border: 1px dashed var(--border-light);
+  color: var(--text-muted);
+  border-radius: 22px;
+  padding: 40px;
+  text-align: center;
+  box-shadow: 0 10px 24px rgba(127, 29, 29, 0.08);
+}
+
+.orders-empty div {
+  font-size: 54px;
+  margin-bottom: 12px;
+}
+
+.order-paid-row {
+  border-top: 1px solid var(--border-light);
+  padding-top: 10px;
+  margin-top: 8px;
+  color: var(--primary-red);
+  font-weight: 900;
+}
+
+@media (max-width: 768px) {
+  .orders-hero {
+    padding: 24px;
+    border-radius: 22px;
+  }
+
+  .order-card {
+    padding: 20px;
+  }
+
+  .order-card-header {
+    flex-direction: column;
+  }
+
+  .order-info-row {
+    font-size: 14px;
+  }
+}

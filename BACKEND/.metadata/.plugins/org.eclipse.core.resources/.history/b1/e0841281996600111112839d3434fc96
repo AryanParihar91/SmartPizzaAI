@@ -1,0 +1,5 @@
+package com.smartpizza.orderservice.service;
+
+public class AdminServiceImpl {
+
+}

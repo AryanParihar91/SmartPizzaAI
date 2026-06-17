@@ -1,0 +1,161 @@
+package com.smartpizza.authservice.service;
+
+import com.smartpizza.authservice.client.DeliveryPartnerClient;
+import com.smartpizza.authservice.dto.AuthResponse;
+import com.smartpizza.authservice.dto.DeliveryPartnerRequest;
+import com.smartpizza.authservice.dto.LoginRequest;
+import com.smartpizza.authservice.dto.RegisterRequest;
+import com.smartpizza.authservice.entity.Role;
+import com.smartpizza.authservice.entity.User;
+import com.smartpizza.authservice.exception.ResourceAlreadyExistsException;
+import com.smartpizza.authservice.repository.UserRepository;
+import com.smartpizza.authservice.security.JwtUtil;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class AuthServiceImplTest {
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private AuthenticationManager authenticationManager;
+
+    @Mock
+    private JwtUtil jwtUtil;
+
+    @Mock
+    private DeliveryPartnerClient deliveryPartnerClient;
+
+    @InjectMocks
+    private AuthServiceImpl authService;
+
+    private RegisterRequest customerRegisterRequest;
+    private User savedCustomer;
+
+    @BeforeEach
+    void setup() {
+        customerRegisterRequest = new RegisterRequest();
+        customerRegisterRequest.setFullName("Aryan Parihar");
+        customerRegisterRequest.setEmail("aryan@gmail.com");
+        customerRegisterRequest.setMobileNumber("9876543210");
+        customerRegisterRequest.setPassword("password123");
+        customerRegisterRequest.setRole(Role.CUSTOMER);
+
+        savedCustomer = new User();
+        savedCustomer.setUserId(1L);
+        savedCustomer.setFullName("Aryan Parihar");
+        savedCustomer.setEmail("aryan@gmail.com");
+        savedCustomer.setMobileNumber("9876543210");
+        savedCustomer.setPassword("encodedPassword");
+        savedCustomer.setRole(Role.CUSTOMER);
+    }
+
+    @Test
+    void registerCustomer_shouldReturnAuthResponse() {
+
+        when(userRepository.existsByEmail("aryan@gmail.com")).thenReturn(false);
+        when(userRepository.existsByMobileNumber("9876543210")).thenReturn(false);
+        when(passwordEncoder.encode("password123")).thenReturn("encodedPassword");
+        when(userRepository.save(any(User.class))).thenReturn(savedCustomer);
+        when(jwtUtil.generateToken(savedCustomer)).thenReturn("dummy-token");
+
+        AuthResponse response = authService.register(customerRegisterRequest);
+
+        assertNotNull(response);
+        assertEquals("dummy-token", response.getToken());
+        assertEquals("Bearer", response.getTokenType());
+        assertEquals(1L, response.getUserId());
+        assertEquals("Aryan Parihar", response.getFullName());
+        assertEquals("aryan@gmail.com", response.getEmail());
+        assertEquals(Role.CUSTOMER, response.getRole());
+
+        verify(userRepository, times(1)).save(any(User.class));
+        verify(deliveryPartnerClient, never()).createDeliveryPartner(any(DeliveryPartnerRequest.class));
+    }
+
+    @Test
+    void registerCustomer_whenEmailAlreadyExists_shouldThrowException() {
+
+        when(userRepository.existsByEmail("aryan@gmail.com")).thenReturn(true);
+
+        assertThrows(ResourceAlreadyExistsException.class, () -> {
+            authService.register(customerRegisterRequest);
+        });
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void registerDeliveryUser_shouldCallDeliveryPartnerClient() {
+
+        RegisterRequest deliveryRequest = new RegisterRequest();
+        deliveryRequest.setFullName("Rahul Kumar");
+        deliveryRequest.setEmail("rahul.delivery@gmail.com");
+        deliveryRequest.setMobileNumber("9876501234");
+        deliveryRequest.setPassword("delivery123");
+        deliveryRequest.setRole(Role.DELIVERY);
+        deliveryRequest.setCity("Bengaluru");
+
+        User savedDeliveryUser = new User();
+        savedDeliveryUser.setUserId(2L);
+        savedDeliveryUser.setFullName("Rahul Kumar");
+        savedDeliveryUser.setEmail("rahul.delivery@gmail.com");
+        savedDeliveryUser.setMobileNumber("9876501234");
+        savedDeliveryUser.setPassword("encodedPassword");
+        savedDeliveryUser.setRole(Role.DELIVERY);
+
+        when(userRepository.existsByEmail("rahul.delivery@gmail.com")).thenReturn(false);
+        when(userRepository.existsByMobileNumber("9876501234")).thenReturn(false);
+        when(passwordEncoder.encode("delivery123")).thenReturn("encodedPassword");
+        when(userRepository.save(any(User.class))).thenReturn(savedDeliveryUser);
+        when(jwtUtil.generateToken(savedDeliveryUser)).thenReturn("delivery-token");
+
+        AuthResponse response = authService.register(deliveryRequest);
+
+        assertNotNull(response);
+        assertEquals(Role.DELIVERY, response.getRole());
+
+        verify(deliveryPartnerClient, times(1)).createDeliveryPartner(any(DeliveryPartnerRequest.class));
+    }
+
+    @Test
+    void login_shouldReturnAuthResponse() {
+
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail("aryan@gmail.com");
+        loginRequest.setPassword("password123");
+
+        when(userRepository.findByEmail("aryan@gmail.com")).thenReturn(Optional.of(savedCustomer));
+        when(jwtUtil.generateToken(savedCustomer)).thenReturn("login-token");
+
+        AuthResponse response = authService.login(loginRequest);
+
+        assertNotNull(response);
+        assertEquals("login-token", response.getToken());
+        assertEquals("aryan@gmail.com", response.getEmail());
+        assertEquals(Role.CUSTOMER, response.getRole());
+
+        verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
+    }
+}

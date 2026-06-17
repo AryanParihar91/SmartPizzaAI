@@ -1,0 +1,26 @@
+package com.smartpizza.orderservice.dto;
+
+import com.smartpizza.orderservice.enums.OrderStatus;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Getter
+@Setter
+public class OrderResponse {
+
+    private Long orderId;
+    private Long userId;
+    private Double subtotal;
+    private Double discountAmount;
+    private Double totalAmount;
+    private String couponCode;
+    private String deliveryAddress;
+    private String customerMobile;
+    private OrderStatus orderStatus;
+    private LocalDateTime orderDate;
+
+    private List<OrderItemResponse> orderItems;
+}

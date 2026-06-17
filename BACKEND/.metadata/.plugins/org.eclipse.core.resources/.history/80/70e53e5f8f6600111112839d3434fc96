@@ -1,0 +1,72 @@
+package com.smartpizza.menuservice.controller;
+
+import com.smartpizza.menuservice.dto.PizzaRequest;
+import com.smartpizza.menuservice.dto.PizzaResponse;
+import com.smartpizza.menuservice.service.PizzaService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/menu/pizzas")
+@RequiredArgsConstructor
+public class PizzaController {
+
+    private final PizzaService pizzaService;
+    // add Pizza
+    @PostMapping
+    public PizzaResponse createPizza(@Valid @RequestBody PizzaRequest request) {
+        return pizzaService.createPizza(request);
+    }
+
+    // getall pizza
+    @GetMapping
+    public List<PizzaResponse> getAllPizzas() {
+        return pizzaService.getAllPizzas();
+    }
+
+    // pizzas available
+    @GetMapping("/available")
+    public List<PizzaResponse> getAvailablePizzas() {
+        return pizzaService.getAvailablePizzas();
+    }
+    
+    //get Pizza by Id
+    @GetMapping("/{pizzaId}")
+    public PizzaResponse getPizzaById(@PathVariable Long pizzaId) {
+        return pizzaService.getPizzaById(pizzaId);
+    }
+
+    //get pizzas by Category
+    @GetMapping("/category/{categoryId}")
+    public List<PizzaResponse> getPizzasByCategory(@PathVariable Long categoryId) {
+        return pizzaService.getPizzasByCategory(categoryId);
+    }
+    
+    //get veg pizzas
+    @GetMapping("/veg/{veg}")
+    public List<PizzaResponse> getPizzasByVegType(@PathVariable Boolean veg) {
+        return pizzaService.getPizzasByVegType(veg);
+    }
+    
+    //updating pizza info
+    @PutMapping("/{pizzaId}")
+    public PizzaResponse updatePizza(@PathVariable Long pizzaId,
+                                     @Valid @RequestBody PizzaRequest request) {
+        return pizzaService.updatePizza(pizzaId, request);
+    }
+
+    //deleting pizza
+    @DeleteMapping("/{pizzaId}")
+    public String deletePizza(@PathVariable Long pizzaId) {
+        pizzaService.deletePizza(pizzaId);
+        return "Pizza deleted successfully";
+    }
+
+    @GetMapping("/test")
+    public String test() {
+        return "Menu service is working";
+    }
+}

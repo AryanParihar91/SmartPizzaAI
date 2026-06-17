@@ -1,0 +1,5 @@
+package com.smartpizza.orderservice.repository;
+
+public class CustomerOrderRepository {
+
+}

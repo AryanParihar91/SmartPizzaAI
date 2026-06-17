@@ -1,0 +1,5 @@
+package com.smartpizza.orderservice.controller;
+
+public class CouponController {
+
+}

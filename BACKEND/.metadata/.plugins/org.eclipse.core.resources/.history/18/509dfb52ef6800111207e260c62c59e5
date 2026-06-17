@@ -1,0 +1,249 @@
+package com.smartpizza.orderservice.service;
+
+import com.smartpizza.orderservice.dto.OrderItemResponse;
+import com.smartpizza.orderservice.dto.OrderResponse;
+import com.smartpizza.orderservice.dto.PlaceOrderRequest;
+import com.smartpizza.orderservice.entity.CartItem;
+import com.smartpizza.orderservice.entity.CustomerOrder;
+import com.smartpizza.orderservice.entity.DeliveryTracking;
+import com.smartpizza.orderservice.entity.OrderItem;
+import com.smartpizza.orderservice.enums.DeliveryStatus;
+import com.smartpizza.orderservice.enums.OrderStatus;
+import com.smartpizza.orderservice.exception.ResourceNotFoundException;
+import com.smartpizza.orderservice.repository.CartItemRepository;
+import com.smartpizza.orderservice.repository.CouponRepository;
+import com.smartpizza.orderservice.repository.CustomerOrderRepository;
+import com.smartpizza.orderservice.repository.DeliveryTrackingRepository;
+import com.smartpizza.orderservice.entity.Coupon;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.smartpizza.orderservice.entity.DeliveryPartner;
+import com.smartpizza.orderservice.repository.DeliveryPartnerRepository;
+
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class OrderServiceImpl implements OrderService {
+
+    private final CartItemRepository cartItemRepository;
+    private final CustomerOrderRepository customerOrderRepository;
+    private final CouponRepository couponRepository;
+    private final DeliveryTrackingRepository deliveryTrackingRepository;
+    private final DeliveryPartnerRepository deliveryPartnerRepository;
+
+    @Override
+    @Transactional
+    public OrderResponse placeOrder(Long userId, PlaceOrderRequest request) {
+
+        List<CartItem> cartItems = cartItemRepository.findByUserId(userId);
+
+        if (cartItems.isEmpty()) {
+            throw new RuntimeException("Cart is empty. Add pizzas before placing order.");
+        }
+
+        double subtotal = 0;
+
+        for (CartItem cartItem : cartItems) {
+            subtotal = subtotal + cartItem.getTotalPrice();
+        }
+
+        double discountAmount = 0;
+
+        if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
+            Coupon coupon = couponRepository.findByCouponCode(request.getCouponCode())
+                    .orElseThrow(() -> new ResourceNotFoundException("Coupon not found: " + request.getCouponCode()));
+
+            if (coupon.getActive() != null && !coupon.getActive()) {
+                throw new RuntimeException("Coupon is not active");
+            }
+
+            if (coupon.getMinimumOrderAmount() != null && subtotal < coupon.getMinimumOrderAmount()) {
+                throw new RuntimeException("Minimum order amount required: " + coupon.getMinimumOrderAmount());
+            }
+
+            discountAmount = subtotal * coupon.getDiscountPercentage() / 100;
+        }
+
+        double totalAmount = subtotal - discountAmount;
+
+        CustomerOrder order = new CustomerOrder();
+        order.setUserId(userId);
+        order.setSubtotal(subtotal);
+        order.setDiscountAmount(discountAmount);
+        order.setTotalAmount(totalAmount);
+        order.setCouponCode(request.getCouponCode());
+        order.setDeliveryAddress(request.getDeliveryAddress());
+        order.setDeliveryCity("Bengaluru");
+        order.setCustomerMobile(request.getCustomerMobile());
+        order.setOrderStatus(OrderStatus.PLACED);
+        order.setOrderDate(LocalDateTime.now());
+
+        List<OrderItem> orderItems = new ArrayList<>();
+
+        for (CartItem cartItem : cartItems) {
+            OrderItem orderItem = new OrderItem();
+            orderItem.setPizzaId(cartItem.getPizzaId());
+            orderItem.setPizzaName(cartItem.getPizzaName());
+            orderItem.setPrice(cartItem.getPrice());
+            orderItem.setQuantity(cartItem.getQuantity());
+            orderItem.setTotalPrice(cartItem.getTotalPrice());
+            orderItem.setCustomerOrder(order);
+
+            orderItems.add(orderItem);
+        }
+
+        order.setOrderItems(orderItems);
+
+        CustomerOrder savedOrder = customerOrderRepository.save(order);
+
+        DeliveryTracking tracking = new DeliveryTracking();
+        tracking.setOrderId(savedOrder.getOrderId());
+
+        DeliveryPartner partner = deliveryPartnerRepository
+                .findFirstByCityIgnoreCaseAndAvailableTrue("Bengaluru")
+                .orElseThrow(() -> new RuntimeException(
+                        "No delivery partner available in Bengaluru"
+                ));
+
+        tracking.setDeliveryPartnerId(partner.getPartnerId());
+        tracking.setDeliveryPartnerName(partner.getPartnerName());
+        tracking.setDeliveryPartnerMobile(partner.getMobileNumber());
+        tracking.setDeliveryStatus(DeliveryStatus.ASSIGNED);
+        tracking.setEtaMinutes(45);
+
+        partner.setAvailable(false);
+        deliveryPartnerRepository.save(partner);
+
+        savedOrder.setOrderStatus(OrderStatus.ASSIGNED);
+        customerOrderRepository.save(savedOrder);
+
+        deliveryTrackingRepository.save(tracking);
+
+
+        cartItemRepository.deleteByUserId(userId);
+
+        return convertToResponse(savedOrder);
+    }
+
+    @Override
+    public List<OrderResponse> getOrdersByUser(Long userId) {
+
+        List<CustomerOrder> orders = customerOrderRepository.findByUserId(userId);
+        List<OrderResponse> responses = new ArrayList<>();
+
+        for (CustomerOrder order : orders) {
+            responses.add(convertToResponse(order));
+        }
+
+        return responses;
+    }
+
+    @Override
+    public OrderResponse getOrderById(Long orderId) {
+
+        CustomerOrder order = customerOrderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+
+        return convertToResponse(order);
+    }
+
+    @Override
+    public OrderResponse updateOrderStatus(Long orderId, OrderStatus status) {
+
+        CustomerOrder order = customerOrderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+
+        order.setOrderStatus(status);
+
+        CustomerOrder updatedOrder = customerOrderRepository.save(order);
+
+        return convertToResponse(updatedOrder);
+    }
+
+    @Override
+    public List<OrderResponse> getAllOrders() {
+
+        List<CustomerOrder> orders = customerOrderRepository.findAll();
+        List<OrderResponse> responses = new ArrayList<>();
+
+        for (CustomerOrder order : orders) {
+            responses.add(convertToResponse(order));
+        }
+
+        return responses;
+    }
+    
+    @Override
+    public List<Long> getTopOrderedPizzaIdsByUser(Long userId) {
+
+        List<CustomerOrder> orders = customerOrderRepository.findByUserIdOrderByOrderDateDesc(userId);
+
+        Map<Long, Integer> pizzaCountMap = new HashMap<>();
+
+        for (CustomerOrder order : orders) {
+            if (order.getOrderItems() != null) {
+                for (OrderItem item : order.getOrderItems()) {
+                    Long pizzaId = item.getPizzaId();
+                    Integer quantity = item.getQuantity();
+
+                    if (pizzaId != null && quantity != null) {
+                        pizzaCountMap.put(
+                                pizzaId,
+                                pizzaCountMap.getOrDefault(pizzaId, 0) + quantity
+                        );
+                    }
+                }
+            }
+        }
+
+        return pizzaCountMap.entrySet()
+                .stream()
+                .sorted(Map.Entry.<Long, Integer>comparingByValue(Comparator.reverseOrder()))
+                .limit(4)
+                .map(Map.Entry::getKey)
+                .toList();
+    }
+
+    private OrderResponse convertToResponse(CustomerOrder order) {
+
+        OrderResponse response = new OrderResponse();
+        response.setOrderId(order.getOrderId());
+        response.setUserId(order.getUserId());
+        response.setSubtotal(order.getSubtotal());
+        response.setDiscountAmount(order.getDiscountAmount());
+        response.setTotalAmount(order.getTotalAmount());
+        response.setCouponCode(order.getCouponCode());
+        response.setDeliveryAddress(order.getDeliveryAddress());
+        response.setDeliveryCity(order.getDeliveryCity());
+        response.setCustomerMobile(order.getCustomerMobile());
+        response.setOrderStatus(order.getOrderStatus());
+        response.setOrderDate(order.getOrderDate());
+
+        List<OrderItemResponse> itemResponses = new ArrayList<>();
+
+        if (order.getOrderItems() != null) {
+            for (OrderItem item : order.getOrderItems()) {
+                OrderItemResponse itemResponse = new OrderItemResponse();
+                itemResponse.setOrderItemId(item.getOrderItemId());
+                itemResponse.setPizzaId(item.getPizzaId());
+                itemResponse.setPizzaName(item.getPizzaName());
+                itemResponse.setPrice(item.getPrice());
+                itemResponse.setQuantity(item.getQuantity());
+                itemResponse.setTotalPrice(item.getTotalPrice());
+
+                itemResponses.add(itemResponse);
+            }
+        }
+
+        response.setOrderItems(itemResponses);
+
+        return response;
+    }
+}

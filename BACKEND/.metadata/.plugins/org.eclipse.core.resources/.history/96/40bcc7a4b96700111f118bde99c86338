@@ -1,0 +1,5 @@
+package com.smartpizza.authservice.service;
+
+public class AuthServiceImplTest {
+
+}

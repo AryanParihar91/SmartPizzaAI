@@ -1,0 +1,89 @@
+spring.application.name=api-gateway
+
+server.port=8080
+
+# Eureka Client Config
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka/
+eureka.client.register-with-eureka=true
+eureka.client.fetch-registry=true
+
+# JWT Secret - must be same as auth-service
+jwt.secret=5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437
+
+# We are using explicit routes, so keep discovery locator disabled for better security
+spring.cloud.gateway.server.webflux.discovery.locator.enabled=false
+spring.cloud.gateway.server.webflux.discovery.locator.lower-case-service-id=true
+
+# Gateway Routes
+
+# Auth Service - Public APIs 
+spring.cloud.gateway.server.webflux.routes[0].id=auth-service-public
+spring.cloud.gateway.server.webflux.routes[0].uri=lb://auth-service
+spring.cloud.gateway.server.webflux.routes[0].predicates[0]=Path=/api/auth/register,/api/auth/login,/api/auth/test
+
+# Auth Service - Protected user APIs
+spring.cloud.gateway.server.webflux.routes[1].id=auth-service-protected
+spring.cloud.gateway.server.webflux.routes[1].uri=lb://auth-service
+spring.cloud.gateway.server.webflux.routes[1].predicates[0]=Path=/api/auth/users/**
+spring.cloud.gateway.server.webflux.routes[1].filters[0]=JwtAuthenticationFilter
+
+
+# Protected Services, login required
+
+# Menu Service
+spring.cloud.gateway.server.webflux.routes[2].id=menu-service
+spring.cloud.gateway.server.webflux.routes[2].uri=lb://menu-service
+spring.cloud.gateway.server.webflux.routes[2].predicates[0]=Path=/api/menu/**
+spring.cloud.gateway.server.webflux.routes[2].filters[0]=JwtAuthenticationFilter
+
+# Order Service - Orders
+spring.cloud.gateway.server.webflux.routes[3].id=order-service-orders
+spring.cloud.gateway.server.webflux.routes[3].uri=lb://order-service
+spring.cloud.gateway.server.webflux.routes[3].predicates[0]=Path=/api/orders/**
+spring.cloud.gateway.server.webflux.routes[3].filters[0]=JwtAuthenticationFilter
+
+# Order Service - Cart
+spring.cloud.gateway.server.webflux.routes[4].id=order-service-cart
+spring.cloud.gateway.server.webflux.routes[4].uri=lb://order-service
+spring.cloud.gateway.server.webflux.routes[4].predicates[0]=Path=/api/cart/**
+spring.cloud.gateway.server.webflux.routes[4].filters[0]=JwtAuthenticationFilter
+
+# Order Service - Coupons
+spring.cloud.gateway.server.webflux.routes[5].id=order-service-coupons
+spring.cloud.gateway.server.webflux.routes[5].uri=lb://order-service
+spring.cloud.gateway.server.webflux.routes[5].predicates[0]=Path=/api/coupons/**
+spring.cloud.gateway.server.webflux.routes[5].filters[0]=JwtAuthenticationFilter
+
+# Order Service - Delivery
+spring.cloud.gateway.server.webflux.routes[6].id=order-service-delivery
+spring.cloud.gateway.server.webflux.routes[6].uri=lb://order-service
+spring.cloud.gateway.server.webflux.routes[6].predicates[0]=Path=/api/delivery/**
+spring.cloud.gateway.server.webflux.routes[6].filters[0]=JwtAuthenticationFilter
+
+# Order Service - Admin
+spring.cloud.gateway.server.webflux.routes[7].id=order-service-admin
+spring.cloud.gateway.server.webflux.routes[7].uri=lb://order-service
+spring.cloud.gateway.server.webflux.routes[7].predicates[0]=Path=/api/admin/**
+spring.cloud.gateway.server.webflux.routes[7].filters[0]=JwtAuthenticationFilter
+
+# Recommendation Service
+spring.cloud.gateway.server.webflux.routes[8].id=recommendation-service
+spring.cloud.gateway.server.webflux.routes[8].uri=lb://recommendation-service
+spring.cloud.gateway.server.webflux.routes[8].predicates[0]=Path=/api/recommendations/**
+spring.cloud.gateway.server.webflux.routes[8].filters[0]=JwtAuthenticationFilter
+
+# Payment Service - Payments
+spring.cloud.gateway.server.webflux.routes[9].id=payment-service-payments
+spring.cloud.gateway.server.webflux.routes[9].uri=lb://payment-service
+spring.cloud.gateway.server.webflux.routes[9].predicates[0]=Path=/api/payments/**
+spring.cloud.gateway.server.webflux.routes[9].filters[0]=JwtAuthenticationFilter
+
+# Payment Service - Invoices
+spring.cloud.gateway.server.webflux.routes[10].id=payment-service-invoices
+spring.cloud.gateway.server.webflux.routes[10].uri=lb://payment-service
+spring.cloud.gateway.server.webflux.routes[10].predicates[0]=Path=/api/invoices/**
+spring.cloud.gateway.server.webflux.routes[10].filters[0]=JwtAuthenticationFilter
+
+# Actuator
+management.endpoints.web.exposure.include=health,info,gateway
+management.endpoint.health.show-details=always

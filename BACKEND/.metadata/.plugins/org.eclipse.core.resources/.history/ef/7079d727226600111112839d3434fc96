@@ -1,0 +1,5 @@
+package com.smartpizza.authservice.dto;
+
+public class LoginRequest {
+
+}

@@ -1,0 +1,16 @@
+package com.smartpizza.orderservice.repository;
+
+import com.smartpizza.orderservice.entity.CustomerOrder;
+import com.smartpizza.orderservice.enums.OrderStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Long> {
+
+    List<CustomerOrder> findByUserId(Long userId);
+
+    Long countByOrderStatus(OrderStatus orderStatus);
+    
+    List<CustomerOrder> findByUserIdOrderByOrderDateDesc(Long userId);
+}

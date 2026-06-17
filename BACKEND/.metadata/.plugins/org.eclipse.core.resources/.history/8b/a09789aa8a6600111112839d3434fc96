@@ -1,0 +1,32 @@
+package com.smartpizza.orderservice.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Entity
+@Table(name = "coupons")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class Coupon {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long couponId;
+
+    @Column(nullable = false, unique = true)
+    private String couponCode;
+
+    private String description;
+
+    @Column(nullable = false)
+    private Double discountPercentage;
+
+    private Double minimumOrderAmount;
+
+    private Boolean active;
+}

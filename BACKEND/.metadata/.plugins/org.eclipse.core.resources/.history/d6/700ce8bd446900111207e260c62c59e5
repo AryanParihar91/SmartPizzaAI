@@ -1,0 +1,21 @@
+package com.smartpizza.orderservice.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class PlaceOrderRequest {
+
+    private String couponCode;
+
+    @NotBlank(message = "Delivery address is required")
+    private String deliveryAddress;
+
+    @NotBlank(message = "Delivery city is required")
+    private String deliveryCity;
+
+    @NotBlank(message = "Customer mobile number is required")
+    private String customerMobile;
+}

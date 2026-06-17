@@ -1,0 +1,17 @@
+package com.smartpizza.recommendationservice.service;
+
+import com.smartpizza.recommendationservice.dto.RecommendationRequest;
+import com.smartpizza.recommendationservice.dto.RecommendationResponse;
+
+import java.util.List;
+
+public interface RecommendationService {
+
+    RecommendationResponse getPersonalizedRecommendations(Long userId, String preferredType);
+
+    RecommendationResponse getSmartCombos(RecommendationRequest request);
+
+    RecommendationResponse getSeasonalRecommendations(String season);
+
+    List<RecommendationResponse> getRecommendationHistory(Long userId);
+}

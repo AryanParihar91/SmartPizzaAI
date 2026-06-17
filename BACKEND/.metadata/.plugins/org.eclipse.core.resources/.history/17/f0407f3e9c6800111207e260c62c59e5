@@ -1,0 +1,220 @@
+package com.smartpizza.orderservice.service;
+
+import com.smartpizza.orderservice.dto.DeliveryPartnerRequest;
+import com.smartpizza.orderservice.dto.DeliveryPartnerResponse;
+import com.smartpizza.orderservice.dto.DeliveryTrackingResponse;
+import com.smartpizza.orderservice.entity.CustomerOrder;
+import com.smartpizza.orderservice.entity.DeliveryPartner;
+import com.smartpizza.orderservice.entity.DeliveryTracking;
+import com.smartpizza.orderservice.enums.DeliveryStatus;
+import com.smartpizza.orderservice.exception.ResourceNotFoundException;
+import com.smartpizza.orderservice.repository.CustomerOrderRepository;
+import com.smartpizza.orderservice.repository.DeliveryPartnerRepository;
+import com.smartpizza.orderservice.repository.DeliveryTrackingRepository;
+import com.smartpizza.orderservice.enums.OrderStatus;
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class DeliveryServiceImpl implements DeliveryService {
+
+	private final DeliveryTrackingRepository deliveryTrackingRepository;
+	private final DeliveryPartnerRepository deliveryPartnerRepository;
+	private final CustomerOrderRepository customerOrderRepository;
+
+	@Override
+	public DeliveryPartnerResponse createDeliveryPartner(DeliveryPartnerRequest request) {
+
+		if (deliveryPartnerRepository.existsByAuthUserId(request.getAuthUserId())) {
+			throw new RuntimeException("Delivery partner already exists for auth user id: " + request.getAuthUserId());
+		}
+
+		if (deliveryPartnerRepository.existsByEmail(request.getEmail())) {
+			throw new RuntimeException("Delivery partner already exists with email: " + request.getEmail());
+		}
+
+		if (deliveryPartnerRepository.existsByMobileNumber(request.getMobileNumber())) {
+			throw new RuntimeException(
+					"Delivery partner already exists with mobile number: " + request.getMobileNumber());
+		}
+
+		DeliveryPartner partner = new DeliveryPartner();
+		partner.setAuthUserId(request.getAuthUserId());
+		partner.setPartnerName(request.getPartnerName());
+		partner.setMobileNumber(request.getMobileNumber());
+		partner.setEmail(request.getEmail());
+		partner.setCity(request.getCity());
+		partner.setAvailable(true);
+
+		DeliveryPartner savedPartner = deliveryPartnerRepository.save(partner);
+
+		return convertPartnerToResponse(savedPartner);
+	}
+
+	@Override
+	public List<DeliveryPartnerResponse> getAllDeliveryPartners() {
+
+		List<DeliveryPartner> partners = deliveryPartnerRepository.findAll();
+		List<DeliveryPartnerResponse> responses = new ArrayList<>();
+
+		for (DeliveryPartner partner : partners) {
+			responses.add(convertPartnerToResponse(partner));
+		}
+
+		return responses;
+	}
+
+	@Override
+	public DeliveryTrackingResponse trackOrder(Long orderId) {
+
+		DeliveryTracking tracking = deliveryTrackingRepository.findByOrderId(orderId).orElseThrow(
+				() -> new ResourceNotFoundException("Tracking details not found for order id: " + orderId));
+
+		return convertTrackingToResponse(tracking);
+	}
+
+	@Override
+	public DeliveryTrackingResponse updateDeliveryStatus(Long orderId, DeliveryStatus status) {
+
+		DeliveryTracking tracking = deliveryTrackingRepository.findByOrderId(orderId).orElseThrow(
+				() -> new ResourceNotFoundException("Tracking details not found for order id: " + orderId));
+
+		CustomerOrder order = customerOrderRepository.findById(orderId)
+				.orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+
+		tracking.setDeliveryStatus(status);
+		tracking.setEtaMinutes(calculateEtaMinutes(status));
+
+		if (status == DeliveryStatus.ASSIGNED) {
+
+			if (tracking.getDeliveryPartnerId() == null) {
+
+				String deliveryCity = order.getDeliveryCity();
+
+				DeliveryPartner partner = deliveryPartnerRepository
+						.findFirstByCityIgnoreCaseAndAvailableTrue(deliveryCity).orElseThrow(
+								() -> new RuntimeException("No delivery partner available in city: " + deliveryCity));
+
+				tracking.setDeliveryPartnerId(partner.getPartnerId());
+				tracking.setDeliveryPartnerName(partner.getPartnerName());
+				tracking.setDeliveryPartnerMobile(partner.getMobileNumber());
+
+				partner.setAvailable(false);
+				deliveryPartnerRepository.save(partner);
+			}
+
+			order.setOrderStatus(OrderStatus.OUT_FOR_DELIVERY);
+			customerOrderRepository.save(order);
+
+		} else if (status == DeliveryStatus.PICKED_UP || status == DeliveryStatus.ON_THE_WAY
+				|| status == DeliveryStatus.NEAR_YOU) {
+
+			order.setOrderStatus(OrderStatus.OUT_FOR_DELIVERY);
+			customerOrderRepository.save(order);
+
+		} else if (status == DeliveryStatus.DELIVERED) {
+
+			order.setOrderStatus(OrderStatus.DELIVERED);
+			customerOrderRepository.save(order);
+
+			markPartnerAvailable(tracking.getDeliveryPartnerId());
+		}
+
+		DeliveryTracking updatedTracking = deliveryTrackingRepository.save(tracking);
+
+		return convertTrackingToResponse(updatedTracking);
+	}
+
+	@Override
+	public DeliveryTrackingResponse trackLatestUndeliveredOrder(Long userId) {
+
+	    List<CustomerOrder> orders = customerOrderRepository.findByUserIdOrderByOrderDateDesc(userId);
+
+	    for (CustomerOrder order : orders) {
+
+	        if (order.getOrderStatus() != OrderStatus.DELIVERED &&
+	                order.getOrderStatus() != OrderStatus.CANCELLED) {
+
+	            DeliveryTracking tracking = deliveryTrackingRepository.findByOrderId(order.getOrderId())
+	                    .orElseThrow(() -> new ResourceNotFoundException(
+	                            "Tracking details not found for order id: " + order.getOrderId()
+	                    ));
+
+	            return convertTrackingToResponse(tracking);
+	        }
+	    }
+
+	    throw new ResourceNotFoundException("No active undelivered order found for this customer");
+	}
+	
+	private void markPartnerAvailable(Long partnerId) {
+
+		if (partnerId != null) {
+
+			DeliveryPartner partner = deliveryPartnerRepository.findById(partnerId).orElseThrow(
+					() -> new ResourceNotFoundException("Delivery partner not found with id: " + partnerId));
+
+			partner.setAvailable(true);
+			deliveryPartnerRepository.save(partner);
+		}
+	}
+
+	private Integer calculateEtaMinutes(DeliveryStatus status) {
+
+		int preparationTime = 15;
+		int distanceKm = 5;
+		int timePerKm = 4;
+		int trafficDelay = 10;
+
+		int predictedEta = preparationTime + (distanceKm * timePerKm) + trafficDelay;
+
+		if (status == DeliveryStatus.ASSIGNED) {
+			return predictedEta;
+		} else if (status == DeliveryStatus.PICKED_UP) {
+			return predictedEta - 10;
+		} else if (status == DeliveryStatus.ON_THE_WAY) {
+			return predictedEta - 20;
+		} else if (status == DeliveryStatus.NEAR_YOU) {
+			return 5;
+		} else if (status == DeliveryStatus.DELIVERED) {
+			return 0;
+		}
+
+		return predictedEta;
+	}
+
+	private DeliveryTrackingResponse convertTrackingToResponse(DeliveryTracking tracking) {
+
+		DeliveryTrackingResponse response = new DeliveryTrackingResponse();
+
+		response.setTrackingId(tracking.getTrackingId());
+		response.setOrderId(tracking.getOrderId());
+		response.setDeliveryPartnerId(tracking.getDeliveryPartnerId());
+		response.setDeliveryPartnerName(tracking.getDeliveryPartnerName());
+		response.setDeliveryPartnerMobile(tracking.getDeliveryPartnerMobile());
+		response.setDeliveryStatus(tracking.getDeliveryStatus());
+		response.setEtaMinutes(tracking.getEtaMinutes());
+
+		return response;
+	}
+
+	private DeliveryPartnerResponse convertPartnerToResponse(DeliveryPartner partner) {
+
+		DeliveryPartnerResponse response = new DeliveryPartnerResponse();
+
+		response.setPartnerId(partner.getPartnerId());
+		response.setAuthUserId(partner.getAuthUserId());
+		response.setPartnerName(partner.getPartnerName());
+		response.setMobileNumber(partner.getMobileNumber());
+		response.setEmail(partner.getEmail());
+		response.setCity(partner.getCity());
+		response.setAvailable(partner.getAvailable());
+
+		return response;
+	}
+}

@@ -1,0 +1,19 @@
+package com.smartpizza.orderservice.service;
+
+import com.smartpizza.orderservice.dto.DeliveryPartnerRequest;
+import com.smartpizza.orderservice.dto.DeliveryPartnerResponse;
+import com.smartpizza.orderservice.dto.DeliveryTrackingResponse;
+import com.smartpizza.orderservice.enums.DeliveryStatus;
+
+import java.util.List;
+
+public interface DeliveryService {
+
+	DeliveryPartnerResponse createDeliveryPartner(DeliveryPartnerRequest request);
+
+	List<DeliveryPartnerResponse> getAllDeliveryPartners();
+
+	DeliveryTrackingResponse trackOrder(Long orderId);
+
+	DeliveryTrackingResponse updateDeliveryStatus(Long orderId, DeliveryStatus status);
+}

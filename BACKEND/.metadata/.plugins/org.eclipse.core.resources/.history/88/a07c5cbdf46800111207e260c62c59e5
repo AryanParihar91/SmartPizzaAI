@@ -1,0 +1,14 @@
+package com.smartpizza.recommendationservice.dto;
+
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class RecommendationRequest {
+
+    private Long userId;
+    private String preferredType;
+    private Double cartAmount;
+    private String season;
+}

@@ -1,0 +1,26 @@
+package com.smartpizza.orderservice.controller;
+
+import com.smartpizza.orderservice.dto.DeliveryTrackingResponse;
+import com.smartpizza.orderservice.enums.DeliveryStatus;
+import com.smartpizza.orderservice.service.DeliveryService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/delivery")
+@RequiredArgsConstructor
+public class DeliveryController {
+
+    private final DeliveryService deliveryService;
+
+    @GetMapping("/track/{orderId}")
+    public DeliveryTrackingResponse trackOrder(@PathVariable Long orderId) {
+        return deliveryService.trackOrder(orderId);
+    }
+
+    @PutMapping("/status/{orderId}")
+    public DeliveryTrackingResponse updateDeliveryStatus(@PathVariable Long orderId,
+                                                         @RequestParam DeliveryStatus status) {
+        return deliveryService.updateDeliveryStatus(orderId, status);
+    }
+}

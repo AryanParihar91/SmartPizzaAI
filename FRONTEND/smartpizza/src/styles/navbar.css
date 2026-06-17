@@ -1,0 +1,36 @@
+.smart-navbar {
+  background: linear-gradient(90deg, #7f1d1d, #b42318, #f97316);
+  box-shadow: 0 6px 18px rgba(127, 29, 29, 0.25);
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.smart-navbar .navbar-brand {
+  font-weight: 900;
+  color: #ffffff !important;
+  font-size: 24px;
+  letter-spacing: 0.3px;
+}
+
+.smart-navbar .nav-link {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 8px 14px !important;
+  transition: all 0.2s ease-in-out;
+}
+
+.smart-navbar .nav-link:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.user-badge {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+}

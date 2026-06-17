@@ -1,0 +1,63 @@
+.checkout-page {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.checkout-hero {
+  background: linear-gradient(135deg, #7f1d1d, #b42318, #f97316);
+  color: white;
+  border-radius: 26px;
+  padding: 32px;
+  margin-bottom: 28px;
+  box-shadow: 0 18px 40px rgba(127, 29, 29, 0.22);
+}
+
+.checkout-hero h1 {
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.checkout-card {
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: 22px;
+  padding: 26px;
+  box-shadow: 0 14px 30px rgba(127, 29, 29, 0.08);
+}
+
+.checkout-card h4 {
+  color: var(--primary-red);
+  font-weight: 900;
+  margin-bottom: 18px;
+}
+
+.checkout-summary {
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 14px 30px rgba(127, 29, 29, 0.1);
+  position: sticky;
+  top: 90px;
+}
+
+.checkout-summary h4 {
+  color: var(--primary-red);
+  font-weight: 900;
+  margin-bottom: 18px;
+}
+
+.checkout-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.checkout-total {
+  border-top: 1px solid var(--border-light);
+  padding-top: 14px;
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--primary-red);
+}

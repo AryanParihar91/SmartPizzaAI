@@ -1,0 +1,5 @@
+package com.smartpizza.paymentservice.exception;
+
+public class GlobalExceptionHandler {
+
+}

@@ -1,0 +1,12 @@
+package com.smartpizza.orderservice.enums;
+
+public enum DeliveryStatus {
+
+    NOT_ASSIGNED,
+    ASSIGNED,
+    PICKED_UP,
+    ON_THE_WAY,
+    NEAR_YOU,
+    DELIVERED
+
+}

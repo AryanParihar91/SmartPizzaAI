@@ -1,0 +1,53 @@
+package com.smartpizza.orderservice.service;
+
+import com.smartpizza.orderservice.dto.AdminDashboardResponse;
+import com.smartpizza.orderservice.dto.OrderResponse;
+import com.smartpizza.orderservice.entity.CustomerOrder;
+import com.smartpizza.orderservice.enums.OrderStatus;
+import com.smartpizza.orderservice.repository.CustomerOrderRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class AdminServiceImpl implements AdminService {
+
+    private final CustomerOrderRepository customerOrderRepository;
+    private final OrderService orderService;
+
+    @Override
+    public AdminDashboardResponse getDashboard() {
+
+        List<CustomerOrder> orders = customerOrderRepository.findAll();
+
+        double totalRevenue = 0;
+
+        for (CustomerOrder order : orders) {
+            if (order.getOrderStatus() != OrderStatus.CANCELLED) {
+                totalRevenue = totalRevenue + order.getTotalAmount();
+            }
+        }
+
+        Long deliveredOrders = customerOrderRepository.countByOrderStatus(OrderStatus.DELIVERED);
+        Long cancelledOrders = customerOrderRepository.countByOrderStatus(OrderStatus.CANCELLED);
+
+        Long totalOrders = (long) orders.size();
+        Long activeOrders = totalOrders - deliveredOrders - cancelledOrders;
+
+        AdminDashboardResponse response = new AdminDashboardResponse();
+        response.setTotalOrders(totalOrders);
+        response.setTotalRevenue(totalRevenue);
+        response.setDeliveredOrders(deliveredOrders);
+        response.setCancelledOrders(cancelledOrders);
+        response.setActiveOrders(activeOrders);
+
+        return response;
+    }
+
+    @Override
+    public List<OrderResponse> getAllOrders() {
+        return orderService.getAllOrders();
+    }
+}

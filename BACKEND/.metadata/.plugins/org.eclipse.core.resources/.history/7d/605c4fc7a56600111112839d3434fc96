@@ -1,0 +1,5 @@
+package com.smartpizza.paymentservice.dto;
+
+public class PaymentRequest {
+
+}

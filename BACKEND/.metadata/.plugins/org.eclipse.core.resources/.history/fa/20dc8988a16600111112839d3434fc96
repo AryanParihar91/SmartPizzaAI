@@ -1,0 +1,5 @@
+package com.smartpizza.recommendationservice.repository;
+
+public class RecommendationLogRepository {
+
+}

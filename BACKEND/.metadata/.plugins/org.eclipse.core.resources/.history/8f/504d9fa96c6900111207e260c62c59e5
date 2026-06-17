@@ -1,0 +1,137 @@
+package com.smartpizza.orderservice.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.smartpizza.orderservice.dto.AdminDashboardResponse;
+import com.smartpizza.orderservice.dto.OrderResponse;
+import com.smartpizza.orderservice.entity.CustomerOrder;
+import com.smartpizza.orderservice.enums.OrderStatus;
+import com.smartpizza.orderservice.repository.CustomerOrderRepository;
+
+@ExtendWith(MockitoExtension.class)
+class AdminServiceImplTest {
+
+	@Mock
+	private CustomerOrderRepository customerOrderRepository;
+
+	@Mock
+	private OrderService orderService;
+
+	@InjectMocks
+	private AdminServiceImpl adminService;
+
+	private CustomerOrder deliveredOrder;
+	private CustomerOrder cancelledOrder;
+	private CustomerOrder placedOrder;
+
+	@BeforeEach
+	void setup() {
+
+		deliveredOrder = new CustomerOrder();
+		deliveredOrder.setOrderId(1L);
+		deliveredOrder.setUserId(1L);
+		deliveredOrder.setSubtotal(700.0);
+		deliveredOrder.setDiscountAmount(70.0);
+		deliveredOrder.setTotalAmount(630.0);
+		deliveredOrder.setDeliveryCity("Bengaluru");
+		deliveredOrder.setOrderStatus(OrderStatus.DELIVERED);
+
+		cancelledOrder = new CustomerOrder();
+		cancelledOrder.setOrderId(2L);
+		cancelledOrder.setUserId(2L);
+		cancelledOrder.setSubtotal(500.0);
+		cancelledOrder.setDiscountAmount(0.0);
+		cancelledOrder.setTotalAmount(500.0);
+		cancelledOrder.setDeliveryCity("Hyderabad");
+		cancelledOrder.setOrderStatus(OrderStatus.CANCELLED);
+
+		placedOrder = new CustomerOrder();
+		placedOrder.setOrderId(3L);
+		placedOrder.setUserId(3L);
+		placedOrder.setSubtotal(400.0);
+		placedOrder.setDiscountAmount(0.0);
+		placedOrder.setTotalAmount(400.0);
+		placedOrder.setDeliveryCity("Bengaluru");
+		placedOrder.setOrderStatus(OrderStatus.PLACED);
+	}
+
+	@Test
+	void getDashboardShouldReturnDashboardData() {
+
+		when(customerOrderRepository.findAll()).thenReturn(List.of(deliveredOrder, cancelledOrder, placedOrder));
+
+		when(customerOrderRepository.countByOrderStatus(OrderStatus.DELIVERED)).thenReturn(1L);
+
+		when(customerOrderRepository.countByOrderStatus(OrderStatus.CANCELLED)).thenReturn(1L);
+
+		AdminDashboardResponse response = adminService.getDashboard();
+
+		assertNotNull(response);
+		assertEquals(3L, response.getTotalOrders());
+		assertEquals(1030.0, response.getTotalRevenue());
+		assertEquals(1L, response.getDeliveredOrders());
+		assertEquals(1L, response.getCancelledOrders());
+		assertEquals(1L, response.getActiveOrders());
+
+		verify(customerOrderRepository, times(1)).findAll();
+		verify(customerOrderRepository, times(1)).countByOrderStatus(OrderStatus.DELIVERED);
+		verify(customerOrderRepository, times(1)).countByOrderStatus(OrderStatus.CANCELLED);
+	}
+
+	@Test
+	void getDashboardWhenNoOrdersShouldReturnZeroValues() {
+
+		when(customerOrderRepository.findAll()).thenReturn(List.of());
+
+		when(customerOrderRepository.countByOrderStatus(OrderStatus.DELIVERED)).thenReturn(0L);
+
+		when(customerOrderRepository.countByOrderStatus(OrderStatus.CANCELLED)).thenReturn(0L);
+
+		AdminDashboardResponse response = adminService.getDashboard();
+
+		assertNotNull(response);
+		assertEquals(0L, response.getTotalOrders());
+		assertEquals(0.0, response.getTotalRevenue());
+		assertEquals(0L, response.getDeliveredOrders());
+		assertEquals(0L, response.getCancelledOrders());
+		assertEquals(0L, response.getActiveOrders());
+
+		verify(customerOrderRepository, times(1)).findAll();
+	}
+
+	@Test
+	void getAllOrdersShouldReturnOrdersFromOrderService() {
+
+		OrderResponse orderResponse = new OrderResponse();
+		orderResponse.setOrderId(1L);
+		orderResponse.setUserId(1L);
+		orderResponse.setTotalAmount(630.0);
+		orderResponse.setDeliveryCity("Bengaluru");
+		orderResponse.setOrderStatus(OrderStatus.DELIVERED);
+
+		when(orderService.getAllOrders()).thenReturn(List.of(orderResponse));
+
+		List<OrderResponse> responses = adminService.getAllOrders();
+
+		assertNotNull(responses);
+		assertEquals(1, responses.size());
+		assertEquals(1L, responses.get(0).getOrderId());
+		assertEquals(630.0, responses.get(0).getTotalAmount());
+		assertEquals(OrderStatus.DELIVERED, responses.get(0).getOrderStatus());
+
+		verify(orderService, times(1)).getAllOrders();
+	}
+}

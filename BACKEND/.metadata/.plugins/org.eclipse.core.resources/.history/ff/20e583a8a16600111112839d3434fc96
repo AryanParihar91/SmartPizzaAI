@@ -1,0 +1,5 @@
+package com.smartpizza.recommendationservice.dto;
+
+public class RecommendationResponse {
+
+}

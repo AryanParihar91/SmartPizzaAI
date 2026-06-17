@@ -1,0 +1,23 @@
+package com.smartpizza.orderservice.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class DeliveryPartnerRequest {
+
+    @NotBlank(message = "Partner name is required")
+    private String partnerName;
+
+    @NotBlank(message = "Mobile number is required")
+    private String mobileNumber;
+
+    @NotNull(message = "Latitude is required")
+    private Double currentLatitude;
+
+    @NotNull(message = "Longitude is required")
+    private Double currentLongitude;
+}

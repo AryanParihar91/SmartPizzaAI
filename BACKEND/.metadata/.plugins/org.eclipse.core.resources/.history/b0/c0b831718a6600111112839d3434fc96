@@ -1,0 +1,5 @@
+package com.smartpizza.orderservice.entity;
+
+public class CartItem {
+
+}

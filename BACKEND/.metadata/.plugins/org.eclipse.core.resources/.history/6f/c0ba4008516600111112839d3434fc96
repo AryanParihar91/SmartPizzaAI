@@ -1,0 +1,5 @@
+package com.smartpizza.menuservice.exception;
+
+public class GlobalExceptionHandler {
+
+}

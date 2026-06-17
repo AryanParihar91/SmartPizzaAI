@@ -1,0 +1,5 @@
+package com.smartpizza.recommendationservice.controller;
+
+public class RecommendationController {
+
+}

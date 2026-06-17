@@ -1,0 +1,259 @@
+package com.smartpizza.menuservice.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.smartpizza.menuservice.dto.PizzaRequest;
+import com.smartpizza.menuservice.dto.PizzaResponse;
+import com.smartpizza.menuservice.entity.Category;
+import com.smartpizza.menuservice.entity.Pizza;
+import com.smartpizza.menuservice.exception.ResourceNotFoundException;
+import com.smartpizza.menuservice.repository.CategoryRepository;
+import com.smartpizza.menuservice.repository.PizzaRepository;
+
+@ExtendWith(MockitoExtension.class)
+class PizzaServiceImplTest {
+
+	@Mock
+	private PizzaRepository pizzaRepository;
+
+	@Mock
+	private CategoryRepository categoryRepository;
+
+	@InjectMocks
+	private PizzaServiceImpl pizzaService;
+
+	private Category category;
+	private Pizza pizza;
+	private PizzaRequest pizzaRequest;
+
+	@BeforeEach
+	void setup() {
+		category = new Category();
+		category.setCategoryId(1L);
+		category.setCategoryName("Veg Pizza");
+		category.setDescription("Vegetarian category");
+
+		pizza = new Pizza();
+		pizza.setPizzaId(1L);
+		pizza.setPizzaName("Farmhouse Pizza");
+		pizza.setDescription("Loaded with veggies");
+		pizza.setPrice(349.0);
+		pizza.setSize("MEDIUM");
+		pizza.setImageUrl("https://example.com/farmhouse.jpg");
+		pizza.setAvailable(true);
+		pizza.setVeg(true);
+		pizza.setPreparationTimeMinutes(20);
+		pizza.setCategory(category);
+
+		pizzaRequest = new PizzaRequest();
+		pizzaRequest.setPizzaName("Farmhouse Pizza");
+		pizzaRequest.setDescription("Loaded with veggies");
+		pizzaRequest.setPrice(349.0);
+		pizzaRequest.setSize("MEDIUM");
+		pizzaRequest.setImageUrl("https://example.com/farmhouse.jpg");
+		pizzaRequest.setAvailable(true);
+		pizzaRequest.setVeg(true);
+		pizzaRequest.setPreparationTimeMinutes(20);
+		pizzaRequest.setCategoryId(1L);
+	}
+
+	@Test
+	void createPizza_shouldReturnPizzaResponse() {
+
+		when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+		when(pizzaRepository.save(any(Pizza.class))).thenReturn(pizza);
+
+		PizzaResponse response = pizzaService.createPizza(pizzaRequest);
+
+		assertNotNull(response);
+		assertEquals(1L, response.getPizzaId());
+		assertEquals("Farmhouse Pizza", response.getPizzaName());
+		assertEquals(349.0, response.getPrice());
+		assertEquals("Veg Pizza", response.getCategoryName());
+		assertEquals(1L, response.getCategoryId());
+
+		verify(categoryRepository, times(1)).findById(1L);
+		verify(pizzaRepository, times(1)).save(any(Pizza.class));
+	}
+
+	@Test
+	void createPizza_whenCategoryNotFound_shouldThrowException() {
+
+		when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
+
+		pizzaRequest.setCategoryId(99L);
+
+		assertThrows(ResourceNotFoundException.class, () -> {
+			pizzaService.createPizza(pizzaRequest);
+		});
+
+		verify(categoryRepository, times(1)).findById(99L);
+		verify(pizzaRepository, never()).save(any(Pizza.class));
+	}
+
+	@Test
+	void getAllPizzas_shouldReturnPizzaList() {
+
+		Pizza pizza2 = new Pizza();
+		pizza2.setPizzaId(2L);
+		pizza2.setPizzaName("Peppy Paneer Pizza");
+		pizza2.setDescription("Paneer pizza");
+		pizza2.setPrice(399.0);
+		pizza2.setSize("MEDIUM");
+		pizza2.setAvailable(true);
+		pizza2.setVeg(true);
+		pizza2.setPreparationTimeMinutes(22);
+		pizza2.setCategory(category);
+
+		when(pizzaRepository.findAll()).thenReturn(Arrays.asList(pizza, pizza2));
+
+		List<PizzaResponse> responses = pizzaService.getAllPizzas();
+
+		assertNotNull(responses);
+		assertEquals(2, responses.size());
+		assertEquals("Farmhouse Pizza", responses.get(0).getPizzaName());
+		assertEquals("Peppy Paneer Pizza", responses.get(1).getPizzaName());
+
+		verify(pizzaRepository, times(1)).findAll();
+	}
+
+	@Test
+	void getAvailablePizzas_shouldReturnAvailablePizzas() {
+
+		when(pizzaRepository.findByAvailableTrue()).thenReturn(List.of(pizza));
+
+		List<PizzaResponse> responses = pizzaService.getAvailablePizzas();
+
+		assertNotNull(responses);
+		assertEquals(1, responses.size());
+		assertTrue(responses.get(0).getAvailable());
+
+		verify(pizzaRepository, times(1)).findByAvailableTrue();
+	}
+
+	@Test
+	void getPizzaById_whenPizzaExists_shouldReturnPizza() {
+
+		when(pizzaRepository.findById(1L)).thenReturn(Optional.of(pizza));
+
+		PizzaResponse response = pizzaService.getPizzaById(1L);
+
+		assertNotNull(response);
+		assertEquals(1L, response.getPizzaId());
+		assertEquals("Farmhouse Pizza", response.getPizzaName());
+
+		verify(pizzaRepository, times(1)).findById(1L);
+	}
+
+	@Test
+	void getPizzaById_whenPizzaNotFound_shouldThrowException() {
+
+		when(pizzaRepository.findById(100L)).thenReturn(Optional.empty());
+
+		assertThrows(ResourceNotFoundException.class, () -> {
+			pizzaService.getPizzaById(100L);
+		});
+
+		verify(pizzaRepository, times(1)).findById(100L);
+	}
+
+	@Test
+	void getPizzasByCategory_shouldReturnPizzas() {
+
+		when(pizzaRepository.findByCategoryCategoryId(1L)).thenReturn(List.of(pizza));
+
+		List<PizzaResponse> responses = pizzaService.getPizzasByCategory(1L);
+
+		assertNotNull(responses);
+		assertEquals(1, responses.size());
+		assertEquals(1L, responses.get(0).getCategoryId());
+
+		verify(pizzaRepository, times(1)).findByCategoryCategoryId(1L);
+	}
+
+	@Test
+	void getPizzasByVegType_shouldReturnVegPizzas() {
+
+		when(pizzaRepository.findByVeg(true)).thenReturn(List.of(pizza));
+
+		List<PizzaResponse> responses = pizzaService.getPizzasByVegType(true);
+
+		assertNotNull(responses);
+		assertEquals(1, responses.size());
+		assertTrue(responses.get(0).getVeg());
+
+		verify(pizzaRepository, times(1)).findByVeg(true);
+	}
+
+	@Test
+	void updatePizza_shouldReturnUpdatedPizza() {
+
+		PizzaRequest updateRequest = new PizzaRequest();
+		updateRequest.setPizzaName("Updated Farmhouse Pizza");
+		updateRequest.setDescription("Updated description");
+		updateRequest.setPrice(379.0);
+		updateRequest.setSize("LARGE");
+		updateRequest.setImageUrl("https://example.com/updated.jpg");
+		updateRequest.setAvailable(true);
+		updateRequest.setVeg(true);
+		updateRequest.setPreparationTimeMinutes(25);
+		updateRequest.setCategoryId(1L);
+
+		Pizza updatedPizza = new Pizza();
+		updatedPizza.setPizzaId(1L);
+		updatedPizza.setPizzaName("Updated Farmhouse Pizza");
+		updatedPizza.setDescription("Updated description");
+		updatedPizza.setPrice(379.0);
+		updatedPizza.setSize("LARGE");
+		updatedPizza.setImageUrl("https://example.com/updated.jpg");
+		updatedPizza.setAvailable(true);
+		updatedPizza.setVeg(true);
+		updatedPizza.setPreparationTimeMinutes(25);
+		updatedPizza.setCategory(category);
+
+		when(pizzaRepository.findById(1L)).thenReturn(Optional.of(pizza));
+		when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+		when(pizzaRepository.save(any(Pizza.class))).thenReturn(updatedPizza);
+
+		PizzaResponse response = pizzaService.updatePizza(1L, updateRequest);
+
+		assertNotNull(response);
+		assertEquals("Updated Farmhouse Pizza", response.getPizzaName());
+		assertEquals(379.0, response.getPrice());
+		assertEquals("LARGE", response.getSize());
+
+		verify(pizzaRepository, times(1)).findById(1L);
+		verify(categoryRepository, times(1)).findById(1L);
+		verify(pizzaRepository, times(1)).save(any(Pizza.class));
+	}
+
+	@Test
+    void deletePizza_shouldDeletePizza() {
+
+        when(pizzaRepository.findById(1L)).thenReturn(Optional.of(pizza));
+
+        pizzaService.deletePizza(1L);
+
+        verify(pizzaRepository, times(1)).findById(1L);
+        verify(pizzaRepository, times(1)).delete(pizza);
+    }
+}

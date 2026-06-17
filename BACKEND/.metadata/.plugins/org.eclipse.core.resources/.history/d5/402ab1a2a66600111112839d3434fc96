@@ -1,0 +1,5 @@
+package com.smartpizza.paymentservice.controller;
+
+public class InvoiceController {
+
+}

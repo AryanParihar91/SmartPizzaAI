@@ -1,0 +1,5 @@
+package com.smartpizza.paymentservice.entity;
+
+public class Invoice {
+
+}

@@ -1,0 +1,63 @@
+package com.smartpizza.orderservice.controller;
+
+import java.util.List;
+
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.smartpizza.orderservice.dto.AddCartItemRequest;
+import com.smartpizza.orderservice.dto.CartItemResponse;
+import com.smartpizza.orderservice.service.CartService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequestMapping("/api/cart")
+@RequiredArgsConstructor
+public class CartController {
+
+    private final CartService cartService;
+
+    // add to cart
+    @PostMapping("/add")
+    public CartItemResponse addToCart(@RequestHeader("X-User-Id") Long userId,
+                                      @Valid @RequestBody AddCartItemRequest request) {
+        return cartService.addToCart(userId, request);
+    }
+
+    // get the user cart
+    @GetMapping("/my-cart")
+    public List<CartItemResponse> getMyCart(@RequestHeader("X-User-Id") Long userId) {
+        return cartService.getCartByUser(userId);
+    }
+
+    //updating cart items
+    @PutMapping("/update/{cartItemId}")
+    public CartItemResponse updateCartItem(@PathVariable Long cartItemId,
+                                           @RequestParam Integer quantity) {
+        return cartService.updateCartItem(cartItemId, quantity);
+    }
+
+    //remove cart item
+    @DeleteMapping("/remove/{cartItemId}")
+    public String removeCartItem(@PathVariable Long cartItemId) {
+        cartService.removeCartItem(cartItemId);
+        return "Cart item removed successfully";
+    }
+
+    // clear cart
+    @DeleteMapping("/clear")
+    public String clearCart(@RequestHeader("X-User-Id") Long userId) {
+        cartService.clearCart(userId);
+        return "Cart cleared successfully";
+    }
+}

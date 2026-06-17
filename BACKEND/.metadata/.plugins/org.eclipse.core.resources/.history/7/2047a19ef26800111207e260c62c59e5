@@ -1,0 +1,167 @@
+package com.smartpizza.recommendationservice.service;
+
+import com.smartpizza.recommendationservice.dto.RecommendationRequest;
+import com.smartpizza.recommendationservice.dto.RecommendationResponse;
+import com.smartpizza.recommendationservice.entity.RecommendationLog;
+import com.smartpizza.recommendationservice.repository.RecommendationLogRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class RecommendationServiceImpl implements RecommendationService {
+
+    private final RecommendationLogRepository recommendationLogRepository;
+
+    @Override
+    public RecommendationResponse getPersonalizedRecommendations(Long userId, String preferredType) {
+
+        List<String> items = new ArrayList<>();
+        String reason = "";
+
+        if (preferredType == null || preferredType.isBlank()) {
+            preferredType = "POPULAR";
+        }
+
+        if (preferredType.equalsIgnoreCase("VEG")) {
+            items = Arrays.asList("Farmhouse Pizza", "Veg Supreme Pizza", "Paneer Makhani Pizza");
+            reason = "Recommended based on vegetarian preference";
+        } else if (preferredType.equalsIgnoreCase("NON_VEG")) {
+            items = Arrays.asList("Chicken Dominator Pizza", "Pepper Barbecue Chicken Pizza", "Chicken Sausage Pizza");
+            reason = "Recommended based on non-vegetarian preference";
+        } else if (preferredType.equalsIgnoreCase("SPICY")) {
+            items = Arrays.asList("Peri Peri Paneer Pizza", "Spicy Chicken Pizza", "Mexican Green Wave Pizza");
+            reason = "Recommended because you prefer spicy food";
+        } else if (preferredType.equalsIgnoreCase("CHEESE")) {
+            items = Arrays.asList("Cheese Burst Margherita", "Cheese Overload Pizza", "Double Cheese Margherita");
+            reason = "Recommended because you like cheesy pizzas";
+        } else {
+            items = Arrays.asList("Margherita Pizza", "Farmhouse Pizza", "Peppy Paneer Pizza");
+            reason = "Popular pizzas recommended for you";
+        }
+
+        RecommendationResponse response = new RecommendationResponse();
+        response.setUserId(userId);
+        response.setRecommendationType("PERSONALIZED");
+        response.setRecommendedItems(items);
+        response.setReason(reason);
+
+        saveLog(response);
+
+        return response;
+    }
+
+    @Override
+    public RecommendationResponse getSmartCombos(RecommendationRequest request) {
+
+        List<String> combos = new ArrayList<>();
+        String reason;
+
+        Double cartAmount = request.getCartAmount();
+
+        if (cartAmount == null) {
+            cartAmount = 0.0;
+        }
+
+        if (cartAmount >= 800) {
+            combos = Arrays.asList(
+                    "Large Farmhouse Pizza + Garlic Bread + Coke",
+                    "Paneer Pizza + Choco Lava Cake + Pepsi"
+            );
+            reason = "High cart amount detected, family combos recommended";
+        } else if (cartAmount >= 400) {
+            combos = Arrays.asList(
+                    "Medium Margherita + Garlic Bread",
+                    "Peppy Paneer Pizza + Coke"
+            );
+            reason = "Medium cart amount detected, value combos recommended";
+        } else {
+            combos = Arrays.asList(
+                    "Regular Margherita + Coke",
+                    "Veg Pizza Single Combo"
+            );
+            reason = "Budget-friendly combos recommended";
+        }
+
+        RecommendationResponse response = new RecommendationResponse();
+        response.setUserId(request.getUserId());
+        response.setRecommendationType("SMART_COMBO");
+        response.setRecommendedItems(combos);
+        response.setReason(reason);
+
+        saveLog(response);
+
+        return response;
+    }
+
+    @Override
+    public RecommendationResponse getSeasonalRecommendations(String season) {
+
+        List<String> items = new ArrayList<>();
+        String reason = "";
+
+        if (season == null || season.isBlank()) {
+            season = "DEFAULT";
+        }
+
+        if (season.equalsIgnoreCase("SUMMER")) {
+            items = Arrays.asList("Margherita Pizza + Cold Coffee", "Farmhouse Pizza + Coke", "Veg Pizza + Iced Tea");
+            reason = "Summer recommendation with refreshing beverages";
+        } else if (season.equalsIgnoreCase("WINTER")) {
+            items = Arrays.asList("Cheese Burst Pizza", "Paneer Makhani Pizza", "Hot Spicy Chicken Pizza");
+            reason = "Winter recommendation with hot and cheesy pizzas";
+        } else if (season.equalsIgnoreCase("MONSOON")) {
+            items = Arrays.asList("Spicy Paneer Pizza + Garlic Bread", "Mexican Green Wave Pizza", "Peri Peri Pizza");
+            reason = "Monsoon recommendation with spicy flavors";
+        } else {
+            items = Arrays.asList("Margherita Pizza", "Farmhouse Pizza", "Veg Supreme Pizza");
+            reason = "Default seasonal recommendations";
+        }
+
+        RecommendationResponse response = new RecommendationResponse();
+        response.setUserId(null);
+        response.setRecommendationType("SEASONAL");
+        response.setRecommendedItems(items);
+        response.setReason(reason);
+
+        saveLog(response);
+
+        return response;
+    }
+
+    @Override
+    public List<RecommendationResponse> getRecommendationHistory(Long userId) {
+
+        List<RecommendationLog> logs = recommendationLogRepository.findByUserId(userId);
+        List<RecommendationResponse> responses = new ArrayList<>();
+
+        for (RecommendationLog log : logs) {
+            RecommendationResponse response = new RecommendationResponse();
+            response.setUserId(log.getUserId());
+            response.setRecommendationType(log.getRecommendationType());
+            response.setRecommendedItems(Arrays.asList(log.getRecommendedItems().split(",")));
+            response.setReason(log.getReason());
+
+            responses.add(response);
+        }
+
+        return responses;
+    }
+
+    private void saveLog(RecommendationResponse response) {
+
+        RecommendationLog log = new RecommendationLog();
+        log.setUserId(response.getUserId());
+        log.setRecommendationType(response.getRecommendationType());
+        log.setRecommendedItems(String.join(",", response.getRecommendedItems()));
+        log.setReason(response.getReason());
+        log.setCreatedAt(LocalDateTime.now());
+
+        recommendationLogRepository.save(log);
+    }
+}

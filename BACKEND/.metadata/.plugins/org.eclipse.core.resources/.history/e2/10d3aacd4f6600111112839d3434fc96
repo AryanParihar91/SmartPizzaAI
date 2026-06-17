@@ -1,0 +1,5 @@
+package com.smartpizza.menuservice.entity;
+
+public class Pizza {
+
+}

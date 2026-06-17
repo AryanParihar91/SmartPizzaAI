@@ -1,0 +1,53 @@
+package com.smartpizza.orderservice.controller;
+
+import java.util.List;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.smartpizza.orderservice.dto.DeliveryPartnerRequest;
+import com.smartpizza.orderservice.dto.DeliveryPartnerResponse;
+import com.smartpizza.orderservice.dto.DeliveryTrackingResponse;
+import com.smartpizza.orderservice.enums.DeliveryStatus;
+import com.smartpizza.orderservice.service.DeliveryService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequestMapping("/api/delivery")
+@RequiredArgsConstructor
+public class DeliveryController {
+
+	private final DeliveryService deliveryService;
+
+	// create delivery partner
+	@PostMapping("/partners")
+	public DeliveryPartnerResponse createDeliveryPartner(@Valid @RequestBody DeliveryPartnerRequest request) {
+		return deliveryService.createDeliveryPartner(request);
+	}
+
+	// get all delivery partners
+	@GetMapping("/partners")
+	public List<DeliveryPartnerResponse> getAllDeliveryPartners() {
+		return deliveryService.getAllDeliveryPartners();
+	}
+
+	// track delivery by orderid
+	@GetMapping("/track/{orderId}")
+	public DeliveryTrackingResponse trackOrder(@PathVariable Long orderId) {
+		return deliveryService.trackOrder(orderId);
+	}
+
+	// update delivery status
+	@PutMapping("/status/{orderId}")
+	public DeliveryTrackingResponse updateDeliveryStatus(@PathVariable Long orderId, @RequestParam DeliveryStatus status) {
+		return deliveryService.updateDeliveryStatus(orderId, status);
+	}
+}

@@ -1,0 +1,10 @@
+package com.smartpizza.orderservice.enums;
+
+public enum DeliveryStatus {
+	PLACED,
+	CONFIRMED, 
+	PREPARING, 
+	OUT_FOR_DELIVERY, 
+	DELIVERED, 
+	CANCELLED
+}

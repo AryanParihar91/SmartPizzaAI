@@ -1,0 +1,5 @@
+package com.smartpizza.apigateway.security;
+
+public class JwtUtil {
+
+}

@@ -1,0 +1,97 @@
+package com.smartpizza.recommendationservice.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.smartpizza.recommendationservice.dto.RecommendationRequest;
+import com.smartpizza.recommendationservice.dto.RecommendationResponse;
+import com.smartpizza.recommendationservice.entity.RecommendationLog;
+import com.smartpizza.recommendationservice.repository.RecommendationLogRepository;
+
+@ExtendWith(MockitoExtension.class)
+class RecommendationServiceImplTest {
+
+	@Mock
+	private RecommendationLogRepository recommendationLogRepository;
+
+	@InjectMocks
+	private RecommendationServiceImpl recommendationService;
+
+	@Test
+	void getPersonalizedRecommendations_whenVeg_shouldReturnVegItems() {
+
+		when(recommendationLogRepository.save(any(RecommendationLog.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		RecommendationResponse response = recommendationService.getPersonalizedRecommendations(1L, "VEG");
+
+		assertNotNull(response);
+		assertEquals(1L, response.getUserId());
+		assertEquals("PERSONALIZED", response.getRecommendationType());
+		assertTrue(response.getRecommendedItems().contains("Farmhouse Pizza"));
+		assertEquals("Recommended based on vegetarian preference", response.getReason());
+
+		verify(recommendationLogRepository, times(1)).save(any(RecommendationLog.class));
+	}
+
+	@Test
+	void getSmartCombos_whenHighCartAmount_shouldReturnFamilyCombos() {
+
+		RecommendationRequest request = new RecommendationRequest();
+		request.setUserId(1L);
+		request.setCartAmount(900.0);
+		request.setPreferredType("VEG");
+		request.setSeason("SUMMER");
+
+		when(recommendationLogRepository.save(any(RecommendationLog.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		RecommendationResponse response = recommendationService.getSmartCombos(request);
+
+		assertNotNull(response);
+		assertEquals("SMART_COMBO", response.getRecommendationType());
+		assertTrue(response.getRecommendedItems().size() > 0);
+		assertEquals("High cart amount detected, family combos recommended", response.getReason());
+
+		verify(recommendationLogRepository, times(1)).save(any(RecommendationLog.class));
+	}
+
+	@Test
+	void getSeasonalRecommendations_whenSummer_shouldReturnSummerItems() {
+
+		when(recommendationLogRepository.save(any(RecommendationLog.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		RecommendationResponse response = recommendationService.getSeasonalRecommendations("SUMMER");
+
+		assertNotNull(response);
+		assertEquals("SEASONAL", response.getRecommendationType());
+		assertTrue(response.getRecommendedItems().contains("Farmhouse Pizza + Coke"));
+		assertEquals("Summer recommendation with refreshing beverages", response.getReason());
+
+		verify(recommendationLogRepository, times(1)).save(any(RecommendationLog.class));
+	}
+
+	@Test
+	void getRecommendationHistory_whenNoLogs_shouldReturnEmptyList() {
+
+		when(recommendationLogRepository.findByUserId(1L)).thenReturn(new ArrayList<>());
+
+		assertTrue(recommendationService.getRecommendationHistory(1L).isEmpty());
+
+		verify(recommendationLogRepository, times(1)).findByUserId(1L);
+	}
+}

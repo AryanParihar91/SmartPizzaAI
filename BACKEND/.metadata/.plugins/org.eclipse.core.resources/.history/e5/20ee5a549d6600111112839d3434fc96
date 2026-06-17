@@ -1,0 +1,75 @@
+package com.smartpizza.orderservice.service;
+
+import org.springframework.stereotype.Service;
+
+import com.smartpizza.orderservice.dto.DeliveryTrackingResponse;
+import com.smartpizza.orderservice.entity.DeliveryTracking;
+import com.smartpizza.orderservice.enums.DeliveryStatus;
+import com.smartpizza.orderservice.exception.ResourceNotFoundException;
+import com.smartpizza.orderservice.repository.DeliveryTrackingRepository;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class DeliveryServiceImpl implements DeliveryService {
+
+    private final DeliveryTrackingRepository deliveryTrackingRepository;
+
+    @Override
+    public DeliveryTrackingResponse trackOrder(Long orderId) {
+
+        DeliveryTracking tracking = deliveryTrackingRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tracking details not found for order id: " + orderId));
+
+        return convertToResponse(tracking);
+    }
+
+    @Override
+    public DeliveryTrackingResponse updateDeliveryStatus(Long orderId, DeliveryStatus status) {
+
+        DeliveryTracking tracking = deliveryTrackingRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tracking details not found for order id: " + orderId));
+
+        tracking.setDeliveryStatus(status);
+
+        if (status == DeliveryStatus.ASSIGNED) {
+            tracking.setDeliveryPartnerName("Rahul Kumar");
+            tracking.setDeliveryPartnerMobile("9876501234");
+            tracking.setEtaMinutes(35);
+        } else if (status == DeliveryStatus.PICKED_UP) {
+            tracking.setEtaMinutes(25);
+            tracking.setCurrentLatitude(12.9750);
+            tracking.setCurrentLongitude(77.6000);
+        } else if (status == DeliveryStatus.ON_THE_WAY) {
+            tracking.setEtaMinutes(15);
+            tracking.setCurrentLatitude(12.9800);
+            tracking.setCurrentLongitude(77.6100);
+        } else if (status == DeliveryStatus.NEAR_YOU) {
+            tracking.setEtaMinutes(5);
+            tracking.setCurrentLatitude(12.9850);
+            tracking.setCurrentLongitude(77.6200);
+        } else if (status == DeliveryStatus.DELIVERED) {
+            tracking.setEtaMinutes(0);
+        }
+
+        DeliveryTracking updatedTracking = deliveryTrackingRepository.save(tracking);
+
+        return convertToResponse(updatedTracking);
+    }
+
+    private DeliveryTrackingResponse convertToResponse(DeliveryTracking tracking) {
+
+        DeliveryTrackingResponse response = new DeliveryTrackingResponse();
+        response.setTrackingId(tracking.getTrackingId());
+        response.setOrderId(tracking.getOrderId());
+        response.setDeliveryPartnerName(tracking.getDeliveryPartnerName());
+        response.setDeliveryPartnerMobile(tracking.getDeliveryPartnerMobile());
+        response.setDeliveryStatus(tracking.getDeliveryStatus());
+        response.setCurrentLatitude(tracking.getCurrentLatitude());
+        response.setCurrentLongitude(tracking.getCurrentLongitude());
+        response.setEtaMinutes(tracking.getEtaMinutes());
+
+        return response;
+    }
+}

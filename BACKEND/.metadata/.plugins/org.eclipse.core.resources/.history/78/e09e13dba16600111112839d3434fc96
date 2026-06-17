@@ -1,0 +1,5 @@
+package com.smartpizza.recommendationservice.service;
+
+public class RecommendationServiceImpl {
+
+}

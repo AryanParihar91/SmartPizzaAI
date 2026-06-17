@@ -1,0 +1,47 @@
+package com.smartpizza.orderservice.controller;
+
+import com.smartpizza.orderservice.dto.AddCartItemRequest;
+import com.smartpizza.orderservice.dto.CartItemResponse;
+import com.smartpizza.orderservice.service.CartService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/cart")
+@RequiredArgsConstructor
+public class CartController {
+
+    private final CartService cartService;
+
+    @PostMapping("/add")
+    public CartItemResponse addToCart(@RequestHeader("X-User-Id") Long userId,
+                                      @Valid @RequestBody AddCartItemRequest request) {
+        return cartService.addToCart(userId, request);
+    }
+
+    @GetMapping("/my-cart")
+    public List<CartItemResponse> getMyCart(@RequestHeader("X-User-Id") Long userId) {
+        return cartService.getCartByUser(userId);
+    }
+
+    @PutMapping("/update/{cartItemId}")
+    public CartItemResponse updateCartItem(@PathVariable Long cartItemId,
+                                           @RequestParam Integer quantity) {
+        return cartService.updateCartItem(cartItemId, quantity);
+    }
+
+    @DeleteMapping("/remove/{cartItemId}")
+    public String removeCartItem(@PathVariable Long cartItemId) {
+        cartService.removeCartItem(cartItemId);
+        return "Cart item removed successfully";
+    }
+
+    @DeleteMapping("/clear")
+    public String clearCart(@RequestHeader("X-User-Id") Long userId) {
+        cartService.clearCart(userId);
+        return "Cart cleared successfully";
+    }
+}

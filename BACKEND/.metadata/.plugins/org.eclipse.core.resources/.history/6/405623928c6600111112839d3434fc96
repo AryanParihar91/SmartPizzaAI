@@ -1,0 +1,5 @@
+package com.smartpizza.orderservice.dto;
+
+public class MenuPizzaResponse {
+
+}

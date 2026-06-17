@@ -1,0 +1,254 @@
+package com.smartpizza.recommendationservice.service;
+
+import com.smartpizza.recommendationservice.client.MenuClient;
+import com.smartpizza.recommendationservice.client.OrderClient;
+import com.smartpizza.recommendationservice.dto.PizzaResponse;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class RecommendationServiceImplTest {
+
+    @Mock
+    private OrderClient orderClient;
+
+    @Mock
+    private MenuClient menuClient;
+
+    @InjectMocks
+    private RecommendationServiceImpl recommendationService;
+
+    private PizzaResponse farmhousePizza;
+    private PizzaResponse margheritaPizza;
+    private PizzaResponse cheeseBurstPizza;
+    private PizzaResponse paneerPizza;
+    private PizzaResponse unavailablePizza;
+
+    @BeforeEach
+    void setup() {
+
+        farmhousePizza = new PizzaResponse();
+        farmhousePizza.setPizzaId(1L);
+        farmhousePizza.setPizzaName("Farmhouse Pizza");
+        farmhousePizza.setDescription("Loaded with onion, capsicum, tomato and mushrooms");
+        farmhousePizza.setPrice(349.0);
+        farmhousePizza.setSize("MEDIUM");
+        farmhousePizza.setImageUrl("https://example.com/farmhouse.jpg");
+        farmhousePizza.setAvailable(true);
+        farmhousePizza.setVeg(true);
+        farmhousePizza.setPreparationTimeMinutes(20);
+        farmhousePizza.setCategoryId(1L);
+        farmhousePizza.setCategoryName("Veg Pizza");
+
+        margheritaPizza = new PizzaResponse();
+        margheritaPizza.setPizzaId(2L);
+        margheritaPizza.setPizzaName("Margherita Pizza");
+        margheritaPizza.setDescription("Classic cheese pizza");
+        margheritaPizza.setPrice(249.0);
+        margheritaPizza.setSize("MEDIUM");
+        margheritaPizza.setImageUrl("https://example.com/margherita.jpg");
+        margheritaPizza.setAvailable(true);
+        margheritaPizza.setVeg(true);
+        margheritaPizza.setPreparationTimeMinutes(15);
+        margheritaPizza.setCategoryId(1L);
+        margheritaPizza.setCategoryName("Veg Pizza");
+
+        cheeseBurstPizza = new PizzaResponse();
+        cheeseBurstPizza.setPizzaId(3L);
+        cheeseBurstPizza.setPizzaName("Cheese Burst Pizza");
+        cheeseBurstPizza.setDescription("Extra cheesy pizza");
+        cheeseBurstPizza.setPrice(399.0);
+        cheeseBurstPizza.setSize("LARGE");
+        cheeseBurstPizza.setImageUrl("https://example.com/cheese.jpg");
+        cheeseBurstPizza.setAvailable(true);
+        cheeseBurstPizza.setVeg(true);
+        cheeseBurstPizza.setPreparationTimeMinutes(25);
+        cheeseBurstPizza.setCategoryId(1L);
+        cheeseBurstPizza.setCategoryName("Veg Pizza");
+
+        paneerPizza = new PizzaResponse();
+        paneerPizza.setPizzaId(4L);
+        paneerPizza.setPizzaName("Paneer Pizza");
+        paneerPizza.setDescription("Paneer loaded pizza");
+        paneerPizza.setPrice(379.0);
+        paneerPizza.setSize("MEDIUM");
+        paneerPizza.setImageUrl("https://example.com/paneer.jpg");
+        paneerPizza.setAvailable(true);
+        paneerPizza.setVeg(true);
+        paneerPizza.setPreparationTimeMinutes(22);
+        paneerPizza.setCategoryId(1L);
+        paneerPizza.setCategoryName("Veg Pizza");
+
+        unavailablePizza = new PizzaResponse();
+        unavailablePizza.setPizzaId(5L);
+        unavailablePizza.setPizzaName("Unavailable Pizza");
+        unavailablePizza.setDescription("Currently not available");
+        unavailablePizza.setPrice(299.0);
+        unavailablePizza.setSize("MEDIUM");
+        unavailablePizza.setAvailable(false);
+        unavailablePizza.setVeg(true);
+        unavailablePizza.setPreparationTimeMinutes(18);
+        unavailablePizza.setCategoryId(1L);
+        unavailablePizza.setCategoryName("Veg Pizza");
+    }
+
+    @Test
+    void getRecommendedPizzasForUserWhenUserHasNoOrdersShouldReturnFirstTwoAvailablePizzas() {
+
+        when(orderClient.getTopOrderedPizzaIdsByUser(1L))
+                .thenReturn(List.of());
+
+        when(menuClient.getAllPizzas())
+                .thenReturn(List.of(farmhousePizza, margheritaPizza, cheeseBurstPizza));
+
+        List<PizzaResponse> response = recommendationService.getRecommendedPizzasForUser(1L);
+
+        assertNotNull(response);
+        assertEquals(2, response.size());
+
+        assertEquals(1L, response.get(0).getPizzaId());
+        assertEquals("Farmhouse Pizza", response.get(0).getPizzaName());
+
+        assertEquals(2L, response.get(1).getPizzaId());
+        assertEquals("Margherita Pizza", response.get(1).getPizzaName());
+
+        verify(orderClient, times(1)).getTopOrderedPizzaIdsByUser(1L);
+        verify(menuClient, times(1)).getAllPizzas();
+        verify(menuClient, never()).getPizzaById(anyLong());
+    }
+
+    @Test
+    void getRecommendedPizzasForUserWhenUserHasOneOrderedPizzaShouldReturnThatPizza() {
+
+        when(orderClient.getTopOrderedPizzaIdsByUser(1L))
+                .thenReturn(List.of(1L));
+
+        when(menuClient.getPizzaById(1L))
+                .thenReturn(farmhousePizza);
+
+        List<PizzaResponse> response = recommendationService.getRecommendedPizzasForUser(1L);
+
+        assertNotNull(response);
+        assertEquals(1, response.size());
+
+        assertEquals(1L, response.get(0).getPizzaId());
+        assertEquals("Farmhouse Pizza", response.get(0).getPizzaName());
+        assertTrue(response.get(0).getAvailable());
+
+        verify(orderClient, times(1)).getTopOrderedPizzaIdsByUser(1L);
+        verify(menuClient, times(1)).getPizzaById(1L);
+        verify(menuClient, never()).getAllPizzas();
+    }
+
+    @Test
+    void getRecommendedPizzasForUserWhenUserHasMultipleOrderedPizzasShouldReturnTopOrderedPizzas() {
+
+        when(orderClient.getTopOrderedPizzaIdsByUser(1L))
+                .thenReturn(List.of(3L, 1L, 4L, 2L));
+
+        when(menuClient.getPizzaById(3L)).thenReturn(cheeseBurstPizza);
+        when(menuClient.getPizzaById(1L)).thenReturn(farmhousePizza);
+        when(menuClient.getPizzaById(4L)).thenReturn(paneerPizza);
+        when(menuClient.getPizzaById(2L)).thenReturn(margheritaPizza);
+
+        List<PizzaResponse> response = recommendationService.getRecommendedPizzasForUser(1L);
+
+        assertNotNull(response);
+        assertEquals(4, response.size());
+
+        assertEquals(3L, response.get(0).getPizzaId());
+        assertEquals("Cheese Burst Pizza", response.get(0).getPizzaName());
+
+        assertEquals(1L, response.get(1).getPizzaId());
+        assertEquals("Farmhouse Pizza", response.get(1).getPizzaName());
+
+        assertEquals(4L, response.get(2).getPizzaId());
+        assertEquals("Paneer Pizza", response.get(2).getPizzaName());
+
+        assertEquals(2L, response.get(3).getPizzaId());
+        assertEquals("Margherita Pizza", response.get(3).getPizzaName());
+
+        verify(orderClient, times(1)).getTopOrderedPizzaIdsByUser(1L);
+        verify(menuClient, times(1)).getPizzaById(3L);
+        verify(menuClient, times(1)).getPizzaById(1L);
+        verify(menuClient, times(1)).getPizzaById(4L);
+        verify(menuClient, times(1)).getPizzaById(2L);
+        verify(menuClient, never()).getAllPizzas();
+    }
+
+    @Test
+    void getRecommendedPizzasForUserWhenRecommendedPizzaIsUnavailableShouldSkipUnavailablePizza() {
+
+        when(orderClient.getTopOrderedPizzaIdsByUser(1L))
+                .thenReturn(List.of(5L, 1L));
+
+        when(menuClient.getPizzaById(5L)).thenReturn(unavailablePizza);
+        when(menuClient.getPizzaById(1L)).thenReturn(farmhousePizza);
+
+        List<PizzaResponse> response = recommendationService.getRecommendedPizzasForUser(1L);
+
+        assertNotNull(response);
+        assertEquals(1, response.size());
+
+        assertEquals(1L, response.get(0).getPizzaId());
+        assertEquals("Farmhouse Pizza", response.get(0).getPizzaName());
+
+        verify(orderClient, times(1)).getTopOrderedPizzaIdsByUser(1L);
+        verify(menuClient, times(1)).getPizzaById(5L);
+        verify(menuClient, times(1)).getPizzaById(1L);
+    }
+
+    @Test
+    void getRecommendedPizzasForUserWhenMenuServiceThrowsForOnePizzaShouldSkipThatPizza() {
+
+        when(orderClient.getTopOrderedPizzaIdsByUser(1L))
+                .thenReturn(List.of(99L, 1L));
+
+        when(menuClient.getPizzaById(99L))
+                .thenThrow(new RuntimeException("Pizza not found"));
+
+        when(menuClient.getPizzaById(1L))
+                .thenReturn(farmhousePizza);
+
+        List<PizzaResponse> response = recommendationService.getRecommendedPizzasForUser(1L);
+
+        assertNotNull(response);
+        assertEquals(1, response.size());
+
+        assertEquals(1L, response.get(0).getPizzaId());
+        assertEquals("Farmhouse Pizza", response.get(0).getPizzaName());
+
+        verify(orderClient, times(1)).getTopOrderedPizzaIdsByUser(1L);
+        verify(menuClient, times(1)).getPizzaById(99L);
+        verify(menuClient, times(1)).getPizzaById(1L);
+    }
+
+    @Test
+    void getRecommendedPizzasForUserWhenNoOrdersAndNoMenuItemsShouldReturnEmptyList() {
+
+        when(orderClient.getTopOrderedPizzaIdsByUser(1L))
+                .thenReturn(List.of());
+
+        when(menuClient.getAllPizzas())
+                .thenReturn(List.of());
+
+        List<PizzaResponse> response = recommendationService.getRecommendedPizzasForUser(1L);
+
+        assertNotNull(response);
+        assertTrue(response.isEmpty());
+
+        verify(orderClient, times(1)).getTopOrderedPizzaIdsByUser(1L);
+        verify(menuClient, times(1)).getAllPizzas();
+    }
+}

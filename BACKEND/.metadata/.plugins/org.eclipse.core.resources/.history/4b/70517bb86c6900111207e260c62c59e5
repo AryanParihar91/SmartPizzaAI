@@ -1,0 +1,365 @@
+package com.smartpizza.orderservice.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.smartpizza.orderservice.client.MenuClient;
+import com.smartpizza.orderservice.dto.AdminAnalyticsResponse;
+import com.smartpizza.orderservice.dto.AdminDashboardResponse;
+import com.smartpizza.orderservice.dto.CategoryRevenueResponse;
+import com.smartpizza.orderservice.dto.MenuPizzaResponse;
+import com.smartpizza.orderservice.dto.OrderResponse;
+import com.smartpizza.orderservice.dto.TopSellingPizzaResponse;
+import com.smartpizza.orderservice.entity.CustomerOrder;
+import com.smartpizza.orderservice.entity.OrderItem;
+import com.smartpizza.orderservice.enums.DeliveryStatus;
+import com.smartpizza.orderservice.enums.OrderStatus;
+import com.smartpizza.orderservice.repository.CustomerOrderRepository;
+import com.smartpizza.orderservice.repository.DeliveryTrackingRepository;
+
+@ExtendWith(MockitoExtension.class)
+class AdminServiceImplTest {
+
+    @Mock
+    private CustomerOrderRepository customerOrderRepository;
+
+    @Mock
+    private DeliveryTrackingRepository deliveryTrackingRepository;
+
+    @Mock
+    private MenuClient menuClient;
+
+    @InjectMocks
+    private AdminServiceImpl adminService;
+
+    private CustomerOrder deliveredOrder;
+    private CustomerOrder cancelledOrder;
+    private CustomerOrder assignedOrder;
+
+    private OrderItem farmhouseItem;
+    private OrderItem margheritaItem;
+    private OrderItem cheeseBurstItem;
+
+    private MenuPizzaResponse farmhousePizzaResponse;
+    private MenuPizzaResponse margheritaPizzaResponse;
+    private MenuPizzaResponse cheeseBurstPizzaResponse;
+
+    @BeforeEach
+    void setup() {
+
+        farmhouseItem = new OrderItem();
+        farmhouseItem.setOrderItemId(1L);
+        farmhouseItem.setPizzaId(1L);
+        farmhouseItem.setPizzaName("Farmhouse Pizza");
+        farmhouseItem.setPrice(349.0);
+        farmhouseItem.setQuantity(2);
+        farmhouseItem.setTotalPrice(698.0);
+
+        margheritaItem = new OrderItem();
+        margheritaItem.setOrderItemId(2L);
+        margheritaItem.setPizzaId(2L);
+        margheritaItem.setPizzaName("Margherita Pizza");
+        margheritaItem.setPrice(249.0);
+        margheritaItem.setQuantity(1);
+        margheritaItem.setTotalPrice(249.0);
+
+        cheeseBurstItem = new OrderItem();
+        cheeseBurstItem.setOrderItemId(3L);
+        cheeseBurstItem.setPizzaId(3L);
+        cheeseBurstItem.setPizzaName("Cheese Burst Pizza");
+        cheeseBurstItem.setPrice(399.0);
+        cheeseBurstItem.setQuantity(3);
+        cheeseBurstItem.setTotalPrice(1197.0);
+
+        deliveredOrder = new CustomerOrder();
+        deliveredOrder.setOrderId(1L);
+        deliveredOrder.setUserId(1L);
+        deliveredOrder.setSubtotal(947.0);
+        deliveredOrder.setDiscountAmount(0.0);
+        deliveredOrder.setTotalAmount(947.0);
+        deliveredOrder.setDeliveryAddress("Electronic City Phase 1");
+        deliveredOrder.setDeliveryCity("Bengaluru");
+        deliveredOrder.setCustomerMobile("9876543210");
+        deliveredOrder.setOrderStatus(OrderStatus.DELIVERED);
+        deliveredOrder.setOrderItems(List.of(farmhouseItem, margheritaItem));
+
+        cancelledOrder = new CustomerOrder();
+        cancelledOrder.setOrderId(2L);
+        cancelledOrder.setUserId(2L);
+        cancelledOrder.setSubtotal(500.0);
+        cancelledOrder.setDiscountAmount(0.0);
+        cancelledOrder.setTotalAmount(500.0);
+        cancelledOrder.setDeliveryAddress("Whitefield");
+        cancelledOrder.setDeliveryCity("Bengaluru");
+        cancelledOrder.setCustomerMobile("9876500000");
+        cancelledOrder.setOrderStatus(OrderStatus.CANCELLED);
+        cancelledOrder.setOrderItems(List.of());
+
+        assignedOrder = new CustomerOrder();
+        assignedOrder.setOrderId(3L);
+        assignedOrder.setUserId(3L);
+        assignedOrder.setSubtotal(1197.0);
+        assignedOrder.setDiscountAmount(0.0);
+        assignedOrder.setTotalAmount(1197.0);
+        assignedOrder.setDeliveryAddress("Marathahalli");
+        assignedOrder.setDeliveryCity("Bengaluru");
+        assignedOrder.setCustomerMobile("9876511111");
+        assignedOrder.setOrderStatus(OrderStatus.ASSIGNED);
+        assignedOrder.setOrderItems(List.of(cheeseBurstItem));
+
+        farmhousePizzaResponse = new MenuPizzaResponse();
+        farmhousePizzaResponse.setPizzaId(1L);
+        farmhousePizzaResponse.setPizzaName("Farmhouse Pizza");
+        farmhousePizzaResponse.setCategoryId(1L);
+        farmhousePizzaResponse.setCategoryName("Veg Pizza");
+
+        margheritaPizzaResponse = new MenuPizzaResponse();
+        margheritaPizzaResponse.setPizzaId(2L);
+        margheritaPizzaResponse.setPizzaName("Margherita Pizza");
+        margheritaPizzaResponse.setCategoryId(1L);
+        margheritaPizzaResponse.setCategoryName("Veg Pizza");
+
+        cheeseBurstPizzaResponse = new MenuPizzaResponse();
+        cheeseBurstPizzaResponse.setPizzaId(3L);
+        cheeseBurstPizzaResponse.setPizzaName("Cheese Burst Pizza");
+        cheeseBurstPizzaResponse.setCategoryId(2L);
+        cheeseBurstPizzaResponse.setCategoryName("Cheese Pizza");
+    }
+
+    @Test
+    void getDashboardShouldReturnDashboardDataWithGstRevenue() {
+
+        when(customerOrderRepository.findAll())
+                .thenReturn(List.of(deliveredOrder, cancelledOrder, assignedOrder));
+
+        when(customerOrderRepository.countByOrderStatus(OrderStatus.DELIVERED))
+                .thenReturn(1L);
+
+        when(customerOrderRepository.countByOrderStatus(OrderStatus.CANCELLED))
+                .thenReturn(1L);
+
+        AdminDashboardResponse response = adminService.getDashboard();
+
+        assertNotNull(response);
+
+        assertEquals(3L, response.getTotalOrders());
+
+        /*
+         * Cancelled order is excluded.
+         * Delivered order = 947 + 5% GST = 994.35
+         * Assigned order = 1197 + 5% GST = 1256.85
+         * Total revenue = 2251.20
+         */
+        assertEquals(2251.20, response.getTotalRevenue());
+
+        assertEquals(1L, response.getDeliveredOrders());
+        assertEquals(1L, response.getCancelledOrders());
+        assertEquals(1L, response.getActiveOrders());
+
+        verify(customerOrderRepository, times(1)).findAll();
+        verify(customerOrderRepository, times(1)).countByOrderStatus(OrderStatus.DELIVERED);
+        verify(customerOrderRepository, times(1)).countByOrderStatus(OrderStatus.CANCELLED);
+    }
+
+    @Test
+    void getDashboardWhenNoOrdersShouldReturnZeroValues() {
+
+        when(customerOrderRepository.findAll()).thenReturn(List.of());
+
+        when(customerOrderRepository.countByOrderStatus(OrderStatus.DELIVERED))
+                .thenReturn(0L);
+
+        when(customerOrderRepository.countByOrderStatus(OrderStatus.CANCELLED))
+                .thenReturn(0L);
+
+        AdminDashboardResponse response = adminService.getDashboard();
+
+        assertNotNull(response);
+        assertEquals(0L, response.getTotalOrders());
+        assertEquals(0.0, response.getTotalRevenue());
+        assertEquals(0L, response.getDeliveredOrders());
+        assertEquals(0L, response.getCancelledOrders());
+        assertEquals(0L, response.getActiveOrders());
+
+        verify(customerOrderRepository, times(1)).findAll();
+        verify(customerOrderRepository, times(1)).countByOrderStatus(OrderStatus.DELIVERED);
+        verify(customerOrderRepository, times(1)).countByOrderStatus(OrderStatus.CANCELLED);
+    }
+
+    @Test
+    void getAllOrdersShouldReturnAllOrdersFromRepository() {
+
+        when(customerOrderRepository.findAll())
+                .thenReturn(List.of(deliveredOrder, cancelledOrder, assignedOrder));
+
+        List<OrderResponse> responses = adminService.getAllOrders();
+
+        assertNotNull(responses);
+        assertEquals(3, responses.size());
+
+        assertEquals(1L, responses.get(0).getOrderId());
+        assertEquals(947.0, responses.get(0).getTotalAmount());
+        assertEquals(OrderStatus.DELIVERED, responses.get(0).getOrderStatus());
+
+        assertEquals(2L, responses.get(1).getOrderId());
+        assertEquals(OrderStatus.CANCELLED, responses.get(1).getOrderStatus());
+
+        assertEquals(3L, responses.get(2).getOrderId());
+        assertEquals(OrderStatus.ASSIGNED, responses.get(2).getOrderStatus());
+
+        verify(customerOrderRepository, times(1)).findAll();
+    }
+
+    @Test
+    void getAnalyticsShouldReturnBusinessAnalytics() {
+
+        when(customerOrderRepository.findAll())
+                .thenReturn(List.of(deliveredOrder, cancelledOrder, assignedOrder));
+
+        when(menuClient.getPizzaById(1L)).thenReturn(farmhousePizzaResponse);
+        when(menuClient.getPizzaById(2L)).thenReturn(margheritaPizzaResponse);
+        when(menuClient.getPizzaById(3L)).thenReturn(cheeseBurstPizzaResponse);
+
+        when(deliveryTrackingRepository.countByDeliveryStatusNot(DeliveryStatus.DELIVERED))
+                .thenReturn(1L);
+
+        AdminAnalyticsResponse response = adminService.getAnalytics();
+
+        assertNotNull(response);
+
+        /*
+         * Cancelled order is skipped for revenue and items.
+         * Delivered items: Farmhouse qty 2, Margherita qty 1
+         * Assigned items: Cheese Burst qty 3
+         * Total items = 6
+         */
+        assertEquals(6, response.getTotalItemsSold());
+
+        /*
+         * Base revenue excludes cancelled:
+         * 947 + 1197 = 2144
+         */
+        assertEquals(2144.0, response.getBaseRevenue());
+
+        /*
+         * GST = 2144 * 5% = 107.2
+         */
+        assertEquals(107.2, response.getGstCollected());
+
+        /*
+         * Final revenue = 2144 + 107.2 = 2251.2
+         */
+        assertEquals(2251.2, response.getFinalRevenueWithGst());
+
+        /*
+         * Average order value = final revenue / non-cancelled orders
+         * 2251.2 / 2 = 1125.6
+         */
+        assertEquals(1125.6, response.getAverageOrderValue());
+
+        assertEquals(1L, response.getActiveDeliveryCount());
+
+        assertNotNull(response.getOrderStatusCounts());
+        assertEquals(1L, response.getOrderStatusCounts().get("DELIVERED"));
+        assertEquals(1L, response.getOrderStatusCounts().get("CANCELLED"));
+        assertEquals(1L, response.getOrderStatusCounts().get("ASSIGNED"));
+
+        assertNotNull(response.getTopSellingPizzas());
+        assertEquals(3, response.getTopSellingPizzas().size());
+
+        TopSellingPizzaResponse firstPizza = response.getTopSellingPizzas().get(0);
+        assertEquals(3L, firstPizza.getPizzaId());
+        assertEquals("Cheese Burst Pizza", firstPizza.getPizzaName());
+        assertEquals(3, firstPizza.getQuantitySold());
+
+        /*
+         * Cheese Burst revenue with GST:
+         * 1197 + 5% = 1256.85
+         */
+        assertEquals(1256.85, firstPizza.getRevenue());
+
+        TopSellingPizzaResponse secondPizza = response.getTopSellingPizzas().get(1);
+        assertEquals(1L, secondPizza.getPizzaId());
+        assertEquals("Farmhouse Pizza", secondPizza.getPizzaName());
+        assertEquals(2, secondPizza.getQuantitySold());
+
+        TopSellingPizzaResponse thirdPizza = response.getTopSellingPizzas().get(2);
+        assertEquals(2L, thirdPizza.getPizzaId());
+        assertEquals("Margherita Pizza", thirdPizza.getPizzaName());
+        assertEquals(1, thirdPizza.getQuantitySold());
+
+        assertNotNull(response.getCategoryRevenue());
+        assertEquals(2, response.getCategoryRevenue().size());
+
+        CategoryRevenueResponse firstCategory = response.getCategoryRevenue().get(0);
+        assertEquals("Cheese Pizza", firstCategory.getCategoryName());
+        assertEquals(1256.85, firstCategory.getRevenue());
+
+        CategoryRevenueResponse secondCategory = response.getCategoryRevenue().get(1);
+        assertEquals("Veg Pizza", secondCategory.getCategoryName());
+
+        /*
+         * Veg Pizza revenue with GST:
+         * Farmhouse 698 + GST 34.9 = 732.9
+         * Margherita 249 + GST 12.45 = 261.45
+         * Total = 994.35
+         */
+        assertEquals(994.35, secondCategory.getRevenue());
+
+        verify(customerOrderRepository, times(1)).findAll();
+        verify(menuClient, times(1)).getPizzaById(1L);
+        verify(menuClient, times(1)).getPizzaById(2L);
+        verify(menuClient, times(1)).getPizzaById(3L);
+        verify(deliveryTrackingRepository, times(1))
+                .countByDeliveryStatusNot(DeliveryStatus.DELIVERED);
+    }
+
+    @Test
+    void getAnalyticsWhenNoOrdersShouldReturnEmptyAnalytics() {
+
+        when(customerOrderRepository.findAll()).thenReturn(List.of());
+
+        when(deliveryTrackingRepository.countByDeliveryStatusNot(DeliveryStatus.DELIVERED))
+                .thenReturn(0L);
+
+        AdminAnalyticsResponse response = adminService.getAnalytics();
+
+        assertNotNull(response);
+
+        assertEquals(0, response.getTotalItemsSold());
+        assertEquals(0.0, response.getBaseRevenue());
+        assertEquals(0.0, response.getGstCollected());
+        assertEquals(0.0, response.getFinalRevenueWithGst());
+        assertEquals(0.0, response.getAverageOrderValue());
+
+        assertNotNull(response.getTopSellingPizzas());
+        assertEquals(0, response.getTopSellingPizzas().size());
+
+        assertNotNull(response.getCategoryRevenue());
+        assertEquals(0, response.getCategoryRevenue().size());
+
+        assertNotNull(response.getOrderStatusCounts());
+        assertEquals(0L, response.getOrderStatusCounts().get("DELIVERED"));
+        assertEquals(0L, response.getOrderStatusCounts().get("CANCELLED"));
+        assertEquals(0L, response.getOrderStatusCounts().get("ASSIGNED"));
+
+        assertEquals(0L, response.getActiveDeliveryCount());
+
+        verify(customerOrderRepository, times(1)).findAll();
+        verify(deliveryTrackingRepository, times(1))
+                .countByDeliveryStatusNot(DeliveryStatus.DELIVERED);
+    }
+}

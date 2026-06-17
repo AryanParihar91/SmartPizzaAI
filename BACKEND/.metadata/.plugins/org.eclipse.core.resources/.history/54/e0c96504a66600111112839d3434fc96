@@ -1,0 +1,5 @@
+package com.smartpizza.paymentservice.repository;
+
+public class PaymentRepository {
+
+}

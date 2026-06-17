@@ -1,0 +1,16 @@
+package com.smartpizza.recommendationservice.dto;
+
+import lombok.Getter;
+import lombok.Setter;
+
+import java.util.List;
+
+@Getter
+@Setter
+public class RecommendationResponse {
+
+    private Long userId;
+    private String recommendationType;
+    private List<String> recommendedItems;
+    private String reason;
+}

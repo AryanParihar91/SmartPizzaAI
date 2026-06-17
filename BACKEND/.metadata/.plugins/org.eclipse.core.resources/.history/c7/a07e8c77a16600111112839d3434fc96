@@ -1,0 +1,5 @@
+package com.smartpizza.recommendationservice.entity;
+
+public class RecommendationLog {
+
+}

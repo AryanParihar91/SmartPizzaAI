@@ -1,0 +1,192 @@
+package com.smartpizza.orderservice.service;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.smartpizza.orderservice.dto.DeliveryPartnerRequest;
+import com.smartpizza.orderservice.dto.DeliveryPartnerResponse;
+import com.smartpizza.orderservice.dto.DeliveryTrackingResponse;
+import com.smartpizza.orderservice.entity.DeliveryPartner;
+import com.smartpizza.orderservice.entity.DeliveryTracking;
+import com.smartpizza.orderservice.enums.DeliveryStatus;
+import com.smartpizza.orderservice.exception.ResourceNotFoundException;
+import com.smartpizza.orderservice.repository.DeliveryPartnerRepository;
+import com.smartpizza.orderservice.repository.DeliveryTrackingRepository;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class DeliveryServiceImpl implements DeliveryService {
+
+    private final DeliveryTrackingRepository deliveryTrackingRepository;
+    private final DeliveryPartnerRepository deliveryPartnerRepository;
+
+    @Override
+    public DeliveryPartnerResponse createDeliveryPartner(DeliveryPartnerRequest request) {
+
+        DeliveryPartner partner = new DeliveryPartner();
+        partner.setPartnerName(request.getPartnerName());
+        partner.setMobileNumber(request.getMobileNumber());
+        partner.setAvailable(true);
+        partner.setCurrentLatitude(request.getCurrentLatitude());
+        partner.setCurrentLongitude(request.getCurrentLongitude());
+
+        DeliveryPartner savedPartner = deliveryPartnerRepository.save(partner);
+
+        return convertPartnerToResponse(savedPartner);
+    }
+
+    @Override
+    public List<DeliveryPartnerResponse> getAllDeliveryPartners() {
+
+        List<DeliveryPartner> partners = deliveryPartnerRepository.findAll();
+        List<DeliveryPartnerResponse> responses = new ArrayList<>();
+
+        for (DeliveryPartner partner : partners) {
+            responses.add(convertPartnerToResponse(partner));
+        }
+
+        return responses;
+    }
+
+    @Override
+    public DeliveryTrackingResponse trackOrder(Long orderId) {
+
+        DeliveryTracking tracking = deliveryTrackingRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Tracking details not found for order id: " + orderId
+                ));
+
+        return convertTrackingToResponse(tracking);
+    }
+
+    @Override
+    public DeliveryTrackingResponse updateDeliveryStatus(Long orderId, DeliveryStatus status) {
+
+        DeliveryTracking tracking = deliveryTrackingRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Tracking details not found for order id: " + orderId
+                ));
+
+        tracking.setDeliveryStatus(status);
+        tracking.setEtaMinutes(calculateEtaMinutes(status));
+
+        if (status == DeliveryStatus.ASSIGNED) {
+
+            if (tracking.getDeliveryPartnerId() == null) {
+
+                DeliveryPartner partner = deliveryPartnerRepository.findFirstByAvailableTrue()
+                        .orElseThrow(() -> new RuntimeException("No delivery partner available"));
+
+                tracking.setDeliveryPartnerId(partner.getPartnerId());
+                tracking.setDeliveryPartnerName(partner.getPartnerName());
+                tracking.setDeliveryPartnerMobile(partner.getMobileNumber());
+                tracking.setCurrentLatitude(partner.getCurrentLatitude());
+                tracking.setCurrentLongitude(partner.getCurrentLongitude());
+
+                partner.setAvailable(false);
+                deliveryPartnerRepository.save(partner);
+            }
+
+        } else if (status == DeliveryStatus.PICKED_UP) {
+
+            tracking.setCurrentLatitude(12.9750);
+            tracking.setCurrentLongitude(77.6000);
+
+        } else if (status == DeliveryStatus.ON_THE_WAY) {
+
+            tracking.setCurrentLatitude(12.9800);
+            tracking.setCurrentLongitude(77.6100);
+
+        } else if (status == DeliveryStatus.NEAR_YOU) {
+
+            tracking.setCurrentLatitude(12.9850);
+            tracking.setCurrentLongitude(77.6200);
+
+        } else if (status == DeliveryStatus.DELIVERED) {
+
+            tracking.setCurrentLatitude(12.9900);
+            tracking.setCurrentLongitude(77.6250);
+
+            markPartnerAvailable(tracking.getDeliveryPartnerId());
+        }
+
+        DeliveryTracking updatedTracking = deliveryTrackingRepository.save(tracking);
+
+        return convertTrackingToResponse(updatedTracking);
+    }
+
+    private void markPartnerAvailable(Long partnerId) {
+
+        if (partnerId != null) {
+
+            DeliveryPartner partner = deliveryPartnerRepository.findById(partnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Delivery partner not found with id: " + partnerId
+                    ));
+
+            partner.setAvailable(true);
+            deliveryPartnerRepository.save(partner);
+        }
+    }
+    
+    // calculate eta logic
+    private Integer calculateEtaMinutes(DeliveryStatus status) {
+
+        int preparationTime = 15;
+        int distanceKm = 5;
+        int timePerKm = 4;
+        int trafficDelay = 10;
+
+        int predictedEta = preparationTime + (distanceKm * timePerKm) + trafficDelay;
+
+        if (status == DeliveryStatus.ASSIGNED) {
+            return predictedEta;
+        } else if (status == DeliveryStatus.PICKED_UP) {
+            return predictedEta - 10;
+        } else if (status == DeliveryStatus.ON_THE_WAY) {
+            return predictedEta - 20;
+        } else if (status == DeliveryStatus.NEAR_YOU) {
+            return 5;
+        } else if (status == DeliveryStatus.DELIVERED) {
+            return 0;
+        }
+
+        return predictedEta;
+    }
+
+
+    private DeliveryTrackingResponse convertTrackingToResponse(DeliveryTracking tracking) {
+
+        DeliveryTrackingResponse response = new DeliveryTrackingResponse();
+
+        response.setTrackingId(tracking.getTrackingId());
+        response.setOrderId(tracking.getOrderId());
+        response.setDeliveryPartnerId(tracking.getDeliveryPartnerId());
+        response.setDeliveryPartnerName(tracking.getDeliveryPartnerName());
+        response.setDeliveryPartnerMobile(tracking.getDeliveryPartnerMobile());
+        response.setDeliveryStatus(tracking.getDeliveryStatus());
+        response.setCurrentLatitude(tracking.getCurrentLatitude());
+        response.setCurrentLongitude(tracking.getCurrentLongitude());
+        response.setEtaMinutes(tracking.getEtaMinutes());
+
+        return response;
+    }
+
+    private DeliveryPartnerResponse convertPartnerToResponse(DeliveryPartner partner) {
+
+        DeliveryPartnerResponse response = new DeliveryPartnerResponse();
+
+        response.setPartnerId(partner.getPartnerId());
+        response.setPartnerName(partner.getPartnerName());
+        response.setMobileNumber(partner.getMobileNumber());
+        response.setAvailable(partner.getAvailable());
+        response.setCurrentLatitude(partner.getCurrentLatitude());
+        response.setCurrentLongitude(partner.getCurrentLongitude());
+
+        return response;
+    }
+}

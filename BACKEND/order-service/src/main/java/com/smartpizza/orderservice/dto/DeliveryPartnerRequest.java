@@ -1,0 +1,25 @@
+package com.smartpizza.orderservice.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class DeliveryPartnerRequest {
+
+    @NotNull(message = "Auth user id is required")
+    private Long authUserId;
+
+    @NotBlank(message = "Partner name is required")
+    private String partnerName;
+
+    @NotBlank(message = "Mobile number is required")
+    private String mobileNumber;
+
+    @NotBlank(message = "Email is required")
+    private String email;
+
+    private String city;
+}

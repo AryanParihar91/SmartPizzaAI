@@ -1,0 +1,53 @@
+package com.smartpizza.recommendationservice.controller;
+
+import com.smartpizza.recommendationservice.dto.RecommendationRequest;
+import com.smartpizza.recommendationservice.dto.RecommendationResponse;
+import com.smartpizza.recommendationservice.service.RecommendationService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/recommendations")
+@RequiredArgsConstructor
+public class RecommendationController {
+
+    private final RecommendationService recommendationService;
+
+    @GetMapping("/user")
+    public RecommendationResponse getPersonalizedRecommendations(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestParam(required = false) String preferredType
+    ) {
+        return recommendationService.getPersonalizedRecommendations(userId, preferredType);
+    }
+
+    @PostMapping("/combos")
+    public RecommendationResponse getSmartCombos(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestBody RecommendationRequest request
+    ) {
+        request.setUserId(userId);
+        return recommendationService.getSmartCombos(request);
+    }
+
+    @GetMapping("/seasonal")
+    public RecommendationResponse getSeasonalRecommendations(
+            @RequestParam(required = false) String season
+    ) {
+        return recommendationService.getSeasonalRecommendations(season);
+    }
+
+    @GetMapping("/history")
+    public List<RecommendationResponse> getRecommendationHistory(
+            @RequestHeader("X-User-Id") Long userId
+    ) {
+        return recommendationService.getRecommendationHistory(userId);
+    }
+
+    @GetMapping("/test")
+    public String test() {
+        return "Recommendation service is working";
+    }
+}

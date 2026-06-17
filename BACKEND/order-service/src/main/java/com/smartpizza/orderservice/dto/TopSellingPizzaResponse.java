@@ -1,0 +1,16 @@
+package com.smartpizza.orderservice.dto;
+
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class TopSellingPizzaResponse {
+
+	private Long pizzaId;
+	private String pizzaName;
+	private Integer quantitySold;
+
+	// revenue includes GST because admin should see paid value
+	private Double revenue;
+}

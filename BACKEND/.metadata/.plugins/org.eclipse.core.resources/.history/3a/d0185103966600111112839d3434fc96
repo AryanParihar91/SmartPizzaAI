@@ -1,0 +1,5 @@
+package com.smartpizza.menuservice.service;
+
+public class PizzaServiceImpl {
+
+}

@@ -1,0 +1,13 @@
+package com.smartpizza.orderservice.service;
+
+import com.smartpizza.orderservice.dto.AdminDashboardResponse;
+import com.smartpizza.orderservice.dto.OrderResponse;
+
+import java.util.List;
+
+public interface AdminService {
+
+    AdminDashboardResponse getDashboard();
+
+    List<OrderResponse> getAllOrders();
+}

@@ -1,0 +1,15 @@
+package com.smartpizza.orderservice.repository;
+
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.smartpizza.orderservice.entity.DeliveryTracking;
+import com.smartpizza.orderservice.enums.DeliveryStatus;
+
+public interface DeliveryTrackingRepository extends JpaRepository<DeliveryTracking, Long> {
+
+	Optional<DeliveryTracking> findByOrderId(Long orderId);
+
+	Optional<DeliveryTracking> findFirstByDeliveryPartnerIdAndDeliveryStatusNotOrderByTrackingIdDesc(Long deliveryPartnerId, DeliveryStatus deliveryStatus);
+}

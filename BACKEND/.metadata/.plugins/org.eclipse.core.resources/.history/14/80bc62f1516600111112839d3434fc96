@@ -1,0 +1,5 @@
+package com.smartpizza.menuservice.controller;
+
+public class CategoryController {
+
+}
