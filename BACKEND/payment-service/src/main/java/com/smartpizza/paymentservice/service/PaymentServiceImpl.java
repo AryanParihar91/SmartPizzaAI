@@ -19,8 +19,10 @@ import com.smartpizza.paymentservice.repository.InvoiceRepository;
 import com.smartpizza.paymentservice.repository.PaymentRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
 
@@ -30,11 +32,16 @@ public class PaymentServiceImpl implements PaymentService {
 	@Override
 	public PaymentResponse makePayment(Long userId, PaymentRequest request) {
 
+		log.info("Payment initiated for order ID: {}", request.getOrderId());
+
 		Payment existingSuccessPayment = paymentRepository
 				.findFirstByOrderIdAndPaymentStatusOrderByPaymentIdDesc(request.getOrderId(), PaymentStatus.SUCCESS)
 				.orElse(null);
 
 		if (existingSuccessPayment != null) {
+
+			log.warn("Successful payment already exists for order ID: {}", request.getOrderId());
+
 			throw new RuntimeException("Successful payment already exists for order id: " + request.getOrderId());
 		}
 
@@ -43,16 +50,22 @@ public class PaymentServiceImpl implements PaymentService {
 				.orElse(null);
 
 		if (existingCodPayment != null) {
+
+			log.warn("COD payment already exists for order ID: {}", request.getOrderId());
+
 			throw new RuntimeException("COD payment already exists for order id: " + request.getOrderId());
 		}
 
 		validatePaymentMode(request);
 
 		double subtotal = request.getAmount();
+
 		double gstAmount = calculateGst(subtotal);
+
 		double totalAmount = subtotal + gstAmount;
 
 		Payment payment = new Payment();
+
 		payment.setOrderId(request.getOrderId());
 		payment.setUserId(userId);
 		payment.setSubtotal(subtotal);
@@ -64,16 +77,28 @@ public class PaymentServiceImpl implements PaymentService {
 		if (request.getPaymentMode() == PaymentMode.COD) {
 
 			payment.setPaymentStatus(PaymentStatus.PENDING);
+
 			payment.setTransactionId("COD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+
+			log.info("COD payment created for order ID: {}", request.getOrderId());
 
 		} else {
 
 			if (request.getSimulateFailure() != null && request.getSimulateFailure()) {
+
 				payment.setPaymentStatus(PaymentStatus.FAILED);
+
 				payment.setTransactionId("FAILED-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+
+				log.warn("Payment failed for order ID: {}", request.getOrderId());
+
 			} else {
+
 				payment.setPaymentStatus(PaymentStatus.SUCCESS);
+
 				payment.setTransactionId("TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+
+				log.info("Payment successful for order ID: {}", request.getOrderId());
 			}
 		}
 
@@ -83,8 +108,12 @@ public class PaymentServiceImpl implements PaymentService {
 				|| savedPayment.getPaymentStatus() == PaymentStatus.PENDING) {
 
 			if (invoiceRepository.findByOrderId(savedPayment.getOrderId()).isEmpty()) {
+
 				Invoice invoice = createInvoice(savedPayment);
+
 				invoiceRepository.save(invoice);
+
+				log.info("Invoice generated successfully for order ID: {}", savedPayment.getOrderId());
 			}
 		}
 
@@ -94,8 +123,14 @@ public class PaymentServiceImpl implements PaymentService {
 	@Override
 	public PaymentResponse getPaymentByOrderId(Long orderId) {
 
-		Payment payment = paymentRepository.findByOrderId(orderId)
-				.orElseThrow(() -> new ResourceNotFoundException("Payment not found for order id: " + orderId));
+		log.info("Fetching payment for order ID: {}", orderId);
+
+		Payment payment = paymentRepository.findByOrderId(orderId).orElseThrow(() -> {
+
+			log.error("Payment not found for order ID: {}", orderId);
+
+			return new ResourceNotFoundException("Payment not found for order id: " + orderId);
+		});
 
 		return convertToPaymentResponse(payment);
 	}
@@ -103,12 +138,17 @@ public class PaymentServiceImpl implements PaymentService {
 	@Override
 	public List<PaymentResponse> getPaymentsByUser(Long userId) {
 
+		log.info("Fetching payments for user ID: {}", userId);
+
 		List<Payment> payments = paymentRepository.findByUserId(userId);
+
 		List<PaymentResponse> responses = new ArrayList<>();
 
 		for (Payment payment : payments) {
 			responses.add(convertToPaymentResponse(payment));
 		}
+
+		log.info("Total payments fetched for user ID {} : {}", userId, responses.size());
 
 		return responses;
 	}
@@ -116,8 +156,14 @@ public class PaymentServiceImpl implements PaymentService {
 	@Override
 	public InvoiceResponse getInvoiceByOrderId(Long orderId) {
 
-		Invoice invoice = invoiceRepository.findByOrderId(orderId)
-				.orElseThrow(() -> new ResourceNotFoundException("Invoice not found for order id: " + orderId));
+		log.info("Fetching invoice for order ID: {}", orderId);
+
+		Invoice invoice = invoiceRepository.findByOrderId(orderId).orElseThrow(() -> {
+
+			log.error("Invoice not found for order ID: {}", orderId);
+
+			return new ResourceNotFoundException("Invoice not found for order id: " + orderId);
+		});
 
 		return convertToInvoiceResponse(invoice);
 	}
@@ -125,32 +171,52 @@ public class PaymentServiceImpl implements PaymentService {
 	@Override
 	public InvoiceResponse getInvoiceByPaymentId(Long paymentId) {
 
-		Invoice invoice = invoiceRepository.findByPaymentId(paymentId)
-				.orElseThrow(() -> new ResourceNotFoundException("Invoice not found for payment id: " + paymentId));
+		log.info("Fetching invoice for payment ID: {}", paymentId);
+
+		Invoice invoice = invoiceRepository.findByPaymentId(paymentId).orElseThrow(() -> {
+
+			log.error("Invoice not found for payment ID: {}", paymentId);
+
+			return new ResourceNotFoundException("Invoice not found for payment id: " + paymentId);
+		});
 
 		return convertToInvoiceResponse(invoice);
 	}
 
 	private void validatePaymentMode(PaymentRequest request) {
 
+		log.info("Validating payment mode: {}", request.getPaymentMode());
+
 		if (request.getPaymentMode() == PaymentMode.UPI) {
+
 			if (request.getUpiId() == null || request.getUpiId().isBlank()) {
+
+				log.error("UPI ID missing for UPI payment");
+
 				throw new RuntimeException("UPI id is required for UPI payment");
 			}
 		}
 
 		if (request.getPaymentMode() == PaymentMode.CARD) {
+
 			if (request.getCardNumber() == null || request.getCardNumber().isBlank()) {
+
+				log.error("Card number missing for card payment");
+
 				throw new RuntimeException("Card number is required for card payment");
 			}
 
 			if (request.getCardHolderName() == null || request.getCardHolderName().isBlank()) {
+
+				log.error("Card holder name missing for card payment");
+
 				throw new RuntimeException("Card holder name is required for card payment");
 			}
 		}
 	}
 
 	private double calculateGst(double amount) {
+
 		return amount * 0.05;
 	}
 
@@ -164,8 +230,10 @@ public class PaymentServiceImpl implements PaymentService {
 		invoice.setSubtotal(payment.getSubtotal());
 		invoice.setGstAmount(payment.getGstAmount());
 		invoice.setTotalAmount(payment.getTotalAmount());
+
 		invoice.setInvoiceNumber(
 				"INV-" + payment.getOrderId() + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase());
+
 		invoice.setInvoiceDate(LocalDateTime.now());
 
 		return invoice;
@@ -187,11 +255,13 @@ public class PaymentServiceImpl implements PaymentService {
 		response.setPaymentDate(payment.getPaymentDate());
 
 		if (payment.getPaymentMode() == PaymentMode.COD) {
+
 			response.setMessage("COD order placed. Payment will be collected on delivery.");
+
 		} else {
+
 			response.setMessage("Payment completed successfully.");
 		}
-
 		return response;
 	}
 

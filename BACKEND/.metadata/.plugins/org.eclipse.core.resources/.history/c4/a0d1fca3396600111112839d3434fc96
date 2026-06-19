@@ -1,5 +1,0 @@
-package com.smartpizza.apigateway.filter;
-
-public class JwtAuthentificationFilter {
-
-}

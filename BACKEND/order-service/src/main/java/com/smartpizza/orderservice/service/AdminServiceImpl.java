@@ -25,8 +25,10 @@ import com.smartpizza.orderservice.repository.CustomerOrderRepository;
 import com.smartpizza.orderservice.repository.DeliveryTrackingRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AdminServiceImpl implements AdminService {
 
@@ -37,30 +39,41 @@ public class AdminServiceImpl implements AdminService {
 	@Override
 	public AdminDashboardResponse getDashboard() {
 
+		log.info("Fetching admin dashboard data");
+
 		List<CustomerOrder> orders = customerOrderRepository.findAll();
 
 		Long totalOrders = (long) orders.size();
+
 		Double totalRevenue = 0.0;
 
 		for (CustomerOrder order : orders) {
+
 			if (order.getOrderStatus() != OrderStatus.CANCELLED) {
+
 				Double orderAmount = order.getTotalAmount() == null ? 0.0 : order.getTotalAmount();
+
 				Double gstAmount = orderAmount * 0.05;
+
 				totalRevenue = totalRevenue + orderAmount + gstAmount;
 			}
 		}
 
 		Long deliveredOrders = customerOrderRepository.countByOrderStatus(OrderStatus.DELIVERED);
+
 		Long cancelledOrders = customerOrderRepository.countByOrderStatus(OrderStatus.CANCELLED);
 
 		Long activeOrders = totalOrders - deliveredOrders - cancelledOrders;
 
 		AdminDashboardResponse response = new AdminDashboardResponse();
+
 		response.setTotalOrders(totalOrders);
 		response.setTotalRevenue(totalRevenue);
 		response.setDeliveredOrders(deliveredOrders);
 		response.setCancelledOrders(cancelledOrders);
 		response.setActiveOrders(activeOrders);
+
+		log.info("Dashboard data fetched successfully. Total Orders: {}", totalOrders);
 
 		return response;
 	}
@@ -68,18 +81,25 @@ public class AdminServiceImpl implements AdminService {
 	@Override
 	public List<OrderResponse> getAllOrders() {
 
+		log.info("Fetching all customer orders");
+
 		List<CustomerOrder> orders = customerOrderRepository.findAll();
+
 		List<OrderResponse> responses = new ArrayList<>();
 
 		for (CustomerOrder order : orders) {
 			responses.add(convertToOrderResponse(order));
 		}
 
+		log.info("Total orders fetched: {}", responses.size());
+
 		return responses;
 	}
 
 	@Override
 	public AdminAnalyticsResponse getAnalytics() {
+
+		log.info("Generating admin analytics");
 
 		List<CustomerOrder> orders = customerOrderRepository.findAll();
 
@@ -90,31 +110,40 @@ public class AdminServiceImpl implements AdminService {
 		double finalRevenueWithGst = 0.0;
 
 		Map<Long, TopSellingPizzaResponse> pizzaSalesMap = new HashMap<>();
+
 		Map<String, Double> categoryRevenueMap = new HashMap<>();
+
 		Map<String, Long> orderStatusCounts = new LinkedHashMap<>();
 
 		for (OrderStatus status : OrderStatus.values()) {
+
 			orderStatusCounts.put(status.name(), 0L);
 		}
 
 		for (CustomerOrder order : orders) {
 
 			if (order.getOrderStatus() != null) {
+
 				String statusName = order.getOrderStatus().name();
 
 				orderStatusCounts.put(statusName, orderStatusCounts.getOrDefault(statusName, 0L) + 1);
 			}
 
 			if (order.getOrderStatus() == OrderStatus.CANCELLED) {
+
 				continue;
 			}
 
 			double orderAmount = order.getTotalAmount() == null ? 0.0 : order.getTotalAmount();
+
 			double orderGst = orderAmount * 0.05;
+
 			double orderFinalAmount = orderAmount + orderGst;
 
 			baseRevenue = baseRevenue + orderAmount;
+
 			gstCollected = gstCollected + orderGst;
+
 			finalRevenueWithGst = finalRevenueWithGst + orderFinalAmount;
 
 			if (order.getOrderItems() != null) {
@@ -122,11 +151,13 @@ public class AdminServiceImpl implements AdminService {
 				for (OrderItem item : order.getOrderItems()) {
 
 					Long pizzaId = item.getPizzaId();
+
 					String pizzaName = item.getPizzaName();
+
 					int quantity = item.getQuantity() == null ? 0 : item.getQuantity();
+
 					double itemBaseRevenue = item.getTotalPrice() == null ? 0.0 : item.getTotalPrice();
 
-					// GST-inclusive item revenue because admin should see paid value
 					double itemRevenueWithGst = itemBaseRevenue + (itemBaseRevenue * 0.05);
 
 					totalItemsSold = totalItemsSold + quantity;
@@ -134,7 +165,9 @@ public class AdminServiceImpl implements AdminService {
 					TopSellingPizzaResponse pizzaStats = pizzaSalesMap.get(pizzaId);
 
 					if (pizzaStats == null) {
+
 						pizzaStats = new TopSellingPizzaResponse();
+
 						pizzaStats.setPizzaId(pizzaId);
 						pizzaStats.setPizzaName(pizzaName);
 						pizzaStats.setQuantitySold(0);
@@ -143,7 +176,6 @@ public class AdminServiceImpl implements AdminService {
 
 					pizzaStats.setQuantitySold(pizzaStats.getQuantitySold() + quantity);
 					pizzaStats.setRevenue(pizzaStats.getRevenue() + itemRevenueWithGst);
-
 					pizzaSalesMap.put(pizzaId, pizzaStats);
 
 					String categoryName = getCategoryName(pizzaId);
@@ -159,6 +191,7 @@ public class AdminServiceImpl implements AdminService {
 		topSellingPizzas.sort(Comparator.comparing(TopSellingPizzaResponse::getQuantitySold).reversed());
 
 		if (topSellingPizzas.size() > 3) {
+
 			topSellingPizzas = topSellingPizzas.subList(0, 3);
 		}
 
@@ -167,6 +200,7 @@ public class AdminServiceImpl implements AdminService {
 		for (Map.Entry<String, Double> entry : categoryRevenueMap.entrySet()) {
 
 			CategoryRevenueResponse response = new CategoryRevenueResponse();
+
 			response.setCategoryName(entry.getKey());
 			response.setRevenue(entry.getValue());
 
@@ -181,12 +215,14 @@ public class AdminServiceImpl implements AdminService {
 		double averageOrderValue = 0.0;
 
 		if (nonCancelledOrders > 0) {
+
 			averageOrderValue = finalRevenueWithGst / nonCancelledOrders;
 		}
 
 		Long activeDeliveryCount = deliveryTrackingRepository.countByDeliveryStatusNot(DeliveryStatus.DELIVERED);
 
 		AdminAnalyticsResponse analytics = new AdminAnalyticsResponse();
+
 		analytics.setTotalItemsSold(totalItemsSold);
 		analytics.setBaseRevenue(baseRevenue);
 		analytics.setGstCollected(gstCollected);
@@ -197,24 +233,37 @@ public class AdminServiceImpl implements AdminService {
 		analytics.setOrderStatusCounts(orderStatusCounts);
 		analytics.setActiveDeliveryCount(activeDeliveryCount);
 
+		log.info("Analytics generated successfully. Revenue with GST: {}", finalRevenueWithGst);
+
 		return analytics;
 	}
 
 	private String getCategoryName(Long pizzaId) {
 
 		if (pizzaId == null) {
+
+			log.warn("Pizza ID is null while fetching category");
+
 			return "Unknown";
 		}
 
 		try {
+
 			MenuPizzaResponse pizza = menuClient.getPizzaById(pizzaId);
 
 			if (pizza != null && pizza.getCategoryName() != null) {
+
 				return pizza.getCategoryName();
 			}
 
+			log.warn("Category not found for pizza ID: {}", pizzaId);
+
 			return "Unknown";
+
 		} catch (Exception exception) {
+
+			log.error("Error fetching category for pizza ID: {}", pizzaId);
+
 			return "Unknown";
 		}
 	}
@@ -249,7 +298,6 @@ public class AdminServiceImpl implements AdminService {
 				itemResponse.setPrice(item.getPrice());
 				itemResponse.setQuantity(item.getQuantity());
 				itemResponse.setTotalPrice(item.getTotalPrice());
-
 				itemResponses.add(itemResponse);
 			}
 		}

@@ -20,8 +20,10 @@ import com.smartpizza.orderservice.repository.DeliveryPartnerRepository;
 import com.smartpizza.orderservice.repository.DeliveryTrackingRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class DeliveryServiceImpl implements DeliveryService {
 
@@ -32,20 +34,32 @@ public class DeliveryServiceImpl implements DeliveryService {
 	@Override
 	public DeliveryPartnerResponse createDeliveryPartner(DeliveryPartnerRequest request) {
 
+		log.info("Creating delivery partner for auth user ID: {}", request.getAuthUserId());
+
 		if (deliveryPartnerRepository.existsByAuthUserId(request.getAuthUserId())) {
+
+			log.warn("Delivery partner already exists for auth user ID: {}", request.getAuthUserId());
+
 			throw new RuntimeException("Delivery partner already exists for auth user id: " + request.getAuthUserId());
 		}
 
 		if (deliveryPartnerRepository.existsByEmail(request.getEmail())) {
+
+			log.warn("Delivery partner already exists with email: {}", request.getEmail());
+
 			throw new RuntimeException("Delivery partner already exists with email: " + request.getEmail());
 		}
 
 		if (deliveryPartnerRepository.existsByMobileNumber(request.getMobileNumber())) {
+
+			log.warn("Delivery partner already exists with mobile number: {}", request.getMobileNumber());
+
 			throw new RuntimeException(
 					"Delivery partner already exists with mobile number: " + request.getMobileNumber());
 		}
 
 		DeliveryPartner partner = new DeliveryPartner();
+
 		partner.setAuthUserId(request.getAuthUserId());
 		partner.setPartnerName(request.getPartnerName());
 		partner.setMobileNumber(request.getMobileNumber());
@@ -55,18 +69,25 @@ public class DeliveryServiceImpl implements DeliveryService {
 
 		DeliveryPartner savedPartner = deliveryPartnerRepository.save(partner);
 
+		log.info("Delivery partner created successfully with ID: {}", savedPartner.getPartnerId());
+
 		return convertPartnerToResponse(savedPartner);
 	}
 
 	@Override
 	public List<DeliveryPartnerResponse> getAllDeliveryPartners() {
 
+		log.info("Fetching all delivery partners");
+
 		List<DeliveryPartner> partners = deliveryPartnerRepository.findAll();
+
 		List<DeliveryPartnerResponse> responses = new ArrayList<>();
 
 		for (DeliveryPartner partner : partners) {
 			responses.add(convertPartnerToResponse(partner));
 		}
+
+		log.info("Total delivery partners fetched: {}", responses.size());
 
 		return responses;
 	}
@@ -74,8 +95,14 @@ public class DeliveryServiceImpl implements DeliveryService {
 	@Override
 	public DeliveryTrackingResponse trackOrder(Long orderId) {
 
-		DeliveryTracking tracking = deliveryTrackingRepository.findByOrderId(orderId).orElseThrow(
-				() -> new ResourceNotFoundException("Tracking details not found for order id: " + orderId));
+		log.info("Tracking order with ID: {}", orderId);
+
+		DeliveryTracking tracking = deliveryTrackingRepository.findByOrderId(orderId).orElseThrow(() -> {
+
+			log.error("Tracking details not found for order ID: {}", orderId);
+
+			return new ResourceNotFoundException("Tracking details not found for order id: " + orderId);
+		});
 
 		return convertTrackingToResponse(tracking);
 	}
@@ -84,11 +111,21 @@ public class DeliveryServiceImpl implements DeliveryService {
 	@Transactional
 	public DeliveryTrackingResponse updateDeliveryStatus(Long orderId, DeliveryStatus status) {
 
-		DeliveryTracking tracking = deliveryTrackingRepository.findByOrderId(orderId).orElseThrow(
-				() -> new ResourceNotFoundException("Tracking details not found for order id: " + orderId));
+		log.info("Updating delivery status for order ID: {} to {}", orderId, status);
 
-		CustomerOrder order = customerOrderRepository.findById(orderId)
-				.orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+		DeliveryTracking tracking = deliveryTrackingRepository.findByOrderId(orderId).orElseThrow(() -> {
+
+			log.error("Tracking details not found for order ID: {}", orderId);
+
+			return new ResourceNotFoundException("Tracking details not found for order id: " + orderId);
+		});
+
+		CustomerOrder order = customerOrderRepository.findById(orderId).orElseThrow(() -> {
+
+			log.error("Order not found with ID: {}", orderId);
+
+			return new ResourceNotFoundException("Order not found with id: " + orderId);
+		});
 
 		validateDeliveryStatusTransition(tracking.getDeliveryStatus(), status);
 
@@ -99,11 +136,13 @@ public class DeliveryServiceImpl implements DeliveryService {
 				|| status == DeliveryStatus.NEAR_YOU) {
 
 			order.setOrderStatus(OrderStatus.OUT_FOR_DELIVERY);
+
 			customerOrderRepository.save(order);
 
 		} else if (status == DeliveryStatus.DELIVERED) {
 
 			order.setOrderStatus(OrderStatus.DELIVERED);
+
 			customerOrderRepository.save(order);
 
 			markPartnerAvailable(tracking.getDeliveryPartnerId());
@@ -111,11 +150,15 @@ public class DeliveryServiceImpl implements DeliveryService {
 
 		DeliveryTracking updatedTracking = deliveryTrackingRepository.save(tracking);
 
+		log.info("Delivery status updated successfully for order ID: {}", orderId);
+
 		return convertTrackingToResponse(updatedTracking);
 	}
 
 	@Override
 	public DeliveryTrackingResponse trackLatestUndeliveredOrder(Long userId) {
+
+		log.info("Fetching latest active order for user ID: {}", userId);
 
 		List<CustomerOrder> orders = customerOrderRepository.findByUserIdOrderByOrderDateDesc(userId);
 
@@ -124,12 +167,19 @@ public class DeliveryServiceImpl implements DeliveryService {
 			if (order.getOrderStatus() != OrderStatus.DELIVERED && order.getOrderStatus() != OrderStatus.CANCELLED) {
 
 				DeliveryTracking tracking = deliveryTrackingRepository.findByOrderId(order.getOrderId())
-						.orElseThrow(() -> new ResourceNotFoundException(
-								"Tracking details not found for order id: " + order.getOrderId()));
+						.orElseThrow(() -> {
+
+							log.error("Tracking details not found for order ID: {}", order.getOrderId());
+
+							return new ResourceNotFoundException(
+									"Tracking details not found for order id: " + order.getOrderId());
+						});
 
 				return convertTrackingToResponse(tracking);
 			}
 		}
+
+		log.warn("No active undelivered order found for user ID: {}", userId);
 
 		throw new ResourceNotFoundException("No active undelivered order found for this customer");
 	}
@@ -137,15 +187,24 @@ public class DeliveryServiceImpl implements DeliveryService {
 	@Override
 	public DeliveryTrackingResponse getMyAssignedDelivery(Long authUserId) {
 
-		DeliveryPartner partner = deliveryPartnerRepository.findByAuthUserId(authUserId)
-				.orElseThrow(() -> new ResourceNotFoundException(
-						"Delivery partner profile not found for auth user id: " + authUserId));
+		log.info("Fetching assigned delivery for auth user ID: {}", authUserId);
+
+		DeliveryPartner partner = deliveryPartnerRepository.findByAuthUserId(authUserId).orElseThrow(() -> {
+
+			log.error("Delivery partner profile not found for auth user ID: {}", authUserId);
+
+			return new ResourceNotFoundException("Delivery partner profile not found for auth user id: " + authUserId);
+		});
 
 		DeliveryTracking tracking = deliveryTrackingRepository
 				.findFirstByDeliveryPartnerIdAndDeliveryStatusNotOrderByTrackingIdDesc(partner.getPartnerId(),
 						DeliveryStatus.DELIVERED)
-				.orElseThrow(() -> new ResourceNotFoundException(
-						"No active assigned delivery found for this delivery partner"));
+				.orElseThrow(() -> {
+
+					log.warn("No active assigned delivery found for partner ID: {}", partner.getPartnerId());
+
+					return new ResourceNotFoundException("No active assigned delivery found for this delivery partner");
+				});
 
 		return convertTrackingToResponse(tracking);
 	}
@@ -154,10 +213,17 @@ public class DeliveryServiceImpl implements DeliveryService {
 
 		if (partnerId != null) {
 
-			DeliveryPartner partner = deliveryPartnerRepository.findById(partnerId).orElseThrow(
-					() -> new ResourceNotFoundException("Delivery partner not found with id: " + partnerId));
+			log.info("Marking delivery partner available with ID: {}", partnerId);
+
+			DeliveryPartner partner = deliveryPartnerRepository.findById(partnerId).orElseThrow(() -> {
+
+				log.error("Delivery partner not found with ID: {}", partnerId);
+
+				return new ResourceNotFoundException("Delivery partner not found with id: " + partnerId);
+			});
 
 			partner.setAvailable(true);
+
 			deliveryPartnerRepository.save(partner);
 		}
 	}
@@ -188,6 +254,8 @@ public class DeliveryServiceImpl implements DeliveryService {
 
 	private void validateDeliveryStatusTransition(DeliveryStatus currentStatus, DeliveryStatus newStatus) {
 
+		log.info("Validating delivery status transition from {} to {}", currentStatus, newStatus);
+
 		if (currentStatus == null) {
 			throw new RuntimeException("Current delivery status is missing");
 		}
@@ -196,23 +264,25 @@ public class DeliveryServiceImpl implements DeliveryService {
 			throw new RuntimeException("Order is not assigned to any delivery partner");
 		}
 
-		if (currentStatus == DeliveryStatus.ASSIGNED) {
-			if (newStatus != DeliveryStatus.PICKED_UP) {
-				throw new RuntimeException("Next allowed status is PICKED_UP");
-			}
-		} else if (currentStatus == DeliveryStatus.PICKED_UP) {
-			if (newStatus != DeliveryStatus.ON_THE_WAY) {
-				throw new RuntimeException("Next allowed status is ON_THE_WAY");
-			}
-		} else if (currentStatus == DeliveryStatus.ON_THE_WAY) {
-			if (newStatus != DeliveryStatus.DELIVERED && newStatus != DeliveryStatus.NEAR_YOU) {
-				throw new RuntimeException("Next allowed status is NEAR_YOU or DELIVERED");
-			}
-		} else if (currentStatus == DeliveryStatus.NEAR_YOU) {
-			if (newStatus != DeliveryStatus.DELIVERED) {
-				throw new RuntimeException("Next allowed status is DELIVERED");
-			}
+		if (currentStatus == DeliveryStatus.ASSIGNED && newStatus != DeliveryStatus.PICKED_UP) {
+
+			throw new RuntimeException("Next allowed status is PICKED_UP");
+
+		} else if (currentStatus == DeliveryStatus.PICKED_UP && newStatus != DeliveryStatus.ON_THE_WAY) {
+
+			throw new RuntimeException("Next allowed status is ON_THE_WAY");
+
+		} else if (currentStatus == DeliveryStatus.ON_THE_WAY && newStatus != DeliveryStatus.DELIVERED
+				&& newStatus != DeliveryStatus.NEAR_YOU) {
+
+			throw new RuntimeException("Next allowed status is NEAR_YOU or DELIVERED");
+
+		} else if (currentStatus == DeliveryStatus.NEAR_YOU && newStatus != DeliveryStatus.DELIVERED) {
+
+			throw new RuntimeException("Next allowed status is DELIVERED");
+
 		} else if (currentStatus == DeliveryStatus.DELIVERED) {
+
 			throw new RuntimeException("Order is already delivered");
 		}
 	}

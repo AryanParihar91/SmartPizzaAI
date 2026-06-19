@@ -2,6 +2,10 @@
 <section name="Workbench">
 	<section name="java.lang.Class">
 		<list key="findhistory">
+			<item value="order.setDeliveryCity(request.getDeliveryCity());"/>
+			<item value="deliveryTrackingRepository"/>
+			<item value="indByUserIdOrderByOrderDateDes"/>
+			<item value="DeliveryTracking"/>
 			<item value="test"/>
 			<item value="getUserById"/>
 			<item value="passwordEncoder"/>

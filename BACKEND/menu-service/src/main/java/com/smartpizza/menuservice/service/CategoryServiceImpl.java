@@ -1,86 +1,123 @@
 package com.smartpizza.menuservice.service;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
 import com.smartpizza.menuservice.dto.CategoryRequest;
 import com.smartpizza.menuservice.dto.CategoryResponse;
 import com.smartpizza.menuservice.entity.Category;
 import com.smartpizza.menuservice.exception.ResourceNotFoundException;
 import com.smartpizza.menuservice.repository.CategoryRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
 
-    private final CategoryRepository categoryRepository;
+	private final CategoryRepository categoryRepository;
 
-    @Override
-    public CategoryResponse createCategory(CategoryRequest request) {
+	@Override
+	public CategoryResponse createCategory(CategoryRequest request) {
 
-        Category category = new Category();
-        category.setCategoryName(request.getCategoryName());
-        category.setDescription(request.getDescription());
+		log.info("Creating category: {}", request.getCategoryName());
 
-        Category savedCategory = categoryRepository.save(category);
+		Category category = new Category();
 
-        return convertToResponse(savedCategory);
-    }
+		category.setCategoryName(request.getCategoryName());
+		category.setDescription(request.getDescription());
 
-    @Override
-    public List<CategoryResponse> getAllCategories() {
+		Category savedCategory = categoryRepository.save(category);
 
-        List<Category> categories = categoryRepository.findAll();
-        List<CategoryResponse> responses = new ArrayList<>();
+		log.info("Category created successfully with ID: {}", savedCategory.getCategoryId());
 
-        for (Category category : categories) {
-            responses.add(convertToResponse(category));
-        }
+		return convertToResponse(savedCategory);
+	}
 
-        return responses;
-    }
+	@Override
+	public List<CategoryResponse> getAllCategories() {
 
-    @Override
-    public CategoryResponse getCategoryById(Long categoryId) {
+		log.info("Fetching all categories");
 
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
+		List<Category> categories = categoryRepository.findAll();
 
-        return convertToResponse(category);
-    }
+		List<CategoryResponse> responses = new ArrayList<>();
 
-    @Override
-    public CategoryResponse updateCategory(Long categoryId, CategoryRequest request) {
+		for (Category category : categories) {
+			responses.add(convertToResponse(category));
+		}
 
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
+		log.info("Total categories fetched: {}", responses.size());
 
-        category.setCategoryName(request.getCategoryName());
-        category.setDescription(request.getDescription());
+		return responses;
+	}
 
-        Category updatedCategory = categoryRepository.save(category);
+	@Override
+	public CategoryResponse getCategoryById(Long categoryId) {
 
-        return convertToResponse(updatedCategory);
-    }
+		log.info("Fetching category with ID: {}", categoryId);
 
-    @Override
-    public void deleteCategory(Long categoryId) {
+		Category category = categoryRepository.findById(categoryId).orElseThrow(() -> {
 
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
+			log.error("Category not found with ID: {}", categoryId);
 
-        categoryRepository.delete(category);
-    }
+			return new ResourceNotFoundException("Category not found with id: " + categoryId);
+		});
 
-    private CategoryResponse convertToResponse(Category category) {
+		return convertToResponse(category);
+	}
 
-        CategoryResponse response = new CategoryResponse();
-        response.setCategoryId(category.getCategoryId());
-        response.setCategoryName(category.getCategoryName());
-        response.setDescription(category.getDescription());
+	@Override
+	public CategoryResponse updateCategory(Long categoryId, CategoryRequest request) {
 
-        return response;
-    }
+		log.info("Updating category with ID: {}", categoryId);
+
+		Category category = categoryRepository.findById(categoryId).orElseThrow(() -> {
+
+			log.error("Category not found with ID: {}", categoryId);
+
+			return new ResourceNotFoundException("Category not found with id: " + categoryId);
+		});
+
+		category.setCategoryName(request.getCategoryName());
+		category.setDescription(request.getDescription());
+
+		Category updatedCategory = categoryRepository.save(category);
+
+		log.info("Category updated successfully with ID: {}", updatedCategory.getCategoryId());
+
+		return convertToResponse(updatedCategory);
+	}
+
+	@Override
+	public void deleteCategory(Long categoryId) {
+
+		log.info("Deleting category with ID: {}", categoryId);
+
+		Category category = categoryRepository.findById(categoryId).orElseThrow(() -> {
+
+			log.error("Category not found with ID: {}", categoryId);
+
+			return new ResourceNotFoundException("Category not found with id: " + categoryId);
+		});
+
+		categoryRepository.delete(category);
+
+		log.info("Category deleted successfully with ID: {}", categoryId);
+	}
+
+	private CategoryResponse convertToResponse(Category category) {
+
+		CategoryResponse response = new CategoryResponse();
+
+		response.setCategoryId(category.getCategoryId());
+		response.setCategoryName(category.getCategoryName());
+		response.setDescription(category.getDescription());
+
+		return response;
+	}
 }

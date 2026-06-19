@@ -1,5 +1,10 @@
 package com.smartpizza.orderservice.service;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
 import com.smartpizza.orderservice.dto.CouponApplyRequest;
 import com.smartpizza.orderservice.dto.CouponDetailsResponse;
 import com.smartpizza.orderservice.dto.CouponRequest;
@@ -9,96 +14,129 @@ import com.smartpizza.orderservice.entity.Coupon;
 import com.smartpizza.orderservice.exception.ResourceNotFoundException;
 import com.smartpizza.orderservice.repository.CartItemRepository;
 import com.smartpizza.orderservice.repository.CouponRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class CouponServiceImpl implements CouponService {
 
-    private final CouponRepository couponRepository;
-    private final CartItemRepository cartItemRepository;
+	private final CouponRepository couponRepository;
+	private final CartItemRepository cartItemRepository;
 
-    @Override
-    public CouponDetailsResponse createCoupon(CouponRequest request) {
+	@Override
+	public CouponDetailsResponse createCoupon(CouponRequest request) {
 
-        Coupon coupon = new Coupon();
-        coupon.setCouponCode(request.getCouponCode());
-        coupon.setDescription(request.getDescription());
-        coupon.setDiscountPercentage(request.getDiscountPercentage());
-        coupon.setMinimumOrderAmount(request.getMinimumOrderAmount());
-        coupon.setActive(request.getActive());
+		log.info("Creating coupon with code: {}", request.getCouponCode());
 
-        Coupon savedCoupon = couponRepository.save(coupon);
+		Coupon coupon = new Coupon();
 
-        return convertToDetailsResponse(savedCoupon);
-    }
+		coupon.setCouponCode(request.getCouponCode());
+		coupon.setDescription(request.getDescription());
+		coupon.setDiscountPercentage(request.getDiscountPercentage());
+		coupon.setMinimumOrderAmount(request.getMinimumOrderAmount());
+		coupon.setActive(request.getActive());
 
-    @Override
-    public List<CouponDetailsResponse> getAllCoupons() {
+		Coupon savedCoupon = couponRepository.save(coupon);
 
-        List<Coupon> coupons = couponRepository.findAll();
-        List<CouponDetailsResponse> responses = new ArrayList<>();
+		log.info("Coupon created successfully with ID: {}", savedCoupon.getCouponId());
 
-        for (Coupon coupon : coupons) {
-            responses.add(convertToDetailsResponse(coupon));
-        }
+		return convertToDetailsResponse(savedCoupon);
+	}
 
-        return responses;
-    }
+	@Override
+	public List<CouponDetailsResponse> getAllCoupons() {
 
-    @Override
-    public CouponResponse applyCoupon(CouponApplyRequest request) {
+		log.info("Fetching all coupons");
 
-        List<CartItem> cartItems = cartItemRepository.findByUserId(request.getUserId());
+		List<Coupon> coupons = couponRepository.findAll();
 
-        if (cartItems.isEmpty()) {
-            throw new RuntimeException("Cart is empty");
-        }
+		List<CouponDetailsResponse> responses = new ArrayList<>();
 
-        Coupon coupon = couponRepository.findByCouponCode(request.getCouponCode())
-                .orElseThrow(() -> new ResourceNotFoundException("Coupon not found: " + request.getCouponCode()));
+		for (Coupon coupon : coupons) {
 
-        if (coupon.getActive() != null && !coupon.getActive()) {
-            throw new RuntimeException("Coupon is not active");
-        }
+			responses.add(convertToDetailsResponse(coupon));
+		}
 
-        double subtotal = 0;
+		log.info("Total coupons fetched: {}", responses.size());
 
-        for (CartItem item : cartItems) {
-            subtotal = subtotal + item.getTotalPrice();
-        }
+		return responses;
+	}
 
-        if (coupon.getMinimumOrderAmount() != null && subtotal < coupon.getMinimumOrderAmount()) {
-            throw new RuntimeException("Minimum order amount required: " + coupon.getMinimumOrderAmount());
-        }
+	@Override
+	public CouponResponse applyCoupon(CouponApplyRequest request) {
 
-        double discountAmount = subtotal * coupon.getDiscountPercentage() / 100;
-        double finalAmount = subtotal - discountAmount;
+		log.info("Applying coupon {} for user ID: {}", request.getCouponCode(), request.getUserId());
 
-        CouponResponse response = new CouponResponse();
-        response.setCouponCode(coupon.getCouponCode());
-        response.setSubtotal(subtotal);
-        response.setDiscountAmount(discountAmount);
-        response.setFinalAmount(finalAmount);
-        response.setMessage("Coupon applied successfully");
+		List<CartItem> cartItems = cartItemRepository.findByUserId(request.getUserId());
 
-        return response;
-    }
+		if (cartItems.isEmpty()) {
 
-    private CouponDetailsResponse convertToDetailsResponse(Coupon coupon) {
+			log.warn("Coupon application failed - Cart is empty for user ID: {}", request.getUserId());
+			
+			throw new RuntimeException("Cart is empty");
+		}
 
-        CouponDetailsResponse response = new CouponDetailsResponse();
-        response.setCouponId(coupon.getCouponId());
-        response.setCouponCode(coupon.getCouponCode());
-        response.setDescription(coupon.getDescription());
-        response.setDiscountPercentage(coupon.getDiscountPercentage());
-        response.setMinimumOrderAmount(coupon.getMinimumOrderAmount());
-        response.setActive(coupon.getActive());
+		Coupon coupon = couponRepository.findByCouponCode(request.getCouponCode()).orElseThrow(() -> {
 
-        return response;
-    }
+			log.error("Coupon not found: {}", request.getCouponCode());
+			
+			return new ResourceNotFoundException("Coupon not found: " + request.getCouponCode());
+		});
+
+		if (coupon.getActive() != null && !coupon.getActive()) {
+
+			log.warn("Inactive coupon attempted: {}", coupon.getCouponCode());
+
+			throw new RuntimeException("Coupon is not active");
+		}
+
+		double subtotal = 0;
+
+		for (CartItem item : cartItems) {
+
+			subtotal = subtotal + item.getTotalPrice();
+		}
+
+		log.info("Calculated subtotal for user ID {} : {}", request.getUserId(), subtotal);
+
+		if (coupon.getMinimumOrderAmount() != null && subtotal < coupon.getMinimumOrderAmount()) {
+
+			log.warn("Minimum order amount not met for coupon: {}", coupon.getCouponCode());
+
+			throw new RuntimeException("Minimum order amount required: " + coupon.getMinimumOrderAmount());
+		}
+
+		double discountAmount = subtotal * coupon.getDiscountPercentage() / 100;
+
+		double finalAmount = subtotal - discountAmount;
+
+		CouponResponse response = new CouponResponse();
+
+		response.setCouponCode(coupon.getCouponCode());
+		response.setSubtotal(subtotal);
+		response.setDiscountAmount(discountAmount);
+		response.setFinalAmount(finalAmount);
+		response.setMessage("Coupon applied successfully");
+
+		log.info("Coupon {} applied successfully. Discount: {}", coupon.getCouponCode(), discountAmount);
+
+		return response;
+	}
+
+	private CouponDetailsResponse convertToDetailsResponse(Coupon coupon) {
+
+		CouponDetailsResponse response = new CouponDetailsResponse();
+
+		response.setCouponId(coupon.getCouponId());
+		response.setCouponCode(coupon.getCouponCode());
+		response.setDescription(coupon.getDescription());
+		response.setDiscountPercentage(coupon.getDiscountPercentage());
+		response.setMinimumOrderAmount(coupon.getMinimumOrderAmount());
+		response.setActive(coupon.getActive());
+
+		return response;
+	}
 }
